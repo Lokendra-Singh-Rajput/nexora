@@ -1,0 +1,201 @@
+customer_id,customer_name,segment,region,acquisition_date
+CUST-0001,David Davis,Corporate,North,2025-01-14
+CUST-0002,Lisa Lewis,Consumer,North,2024-12-12
+CUST-0003,Mary Smith,Corporate,Central,2024-08-04
+CUST-0004,Karen Smith,Consumer,South,2024-09-15
+CUST-0005,Linda Anderson,Corporate,Central,2024-08-02
+CUST-0006,Betty Garcia,Corporate,North,2025-01-23
+CUST-0007,John Miller,Corporate,East,2024-05-22
+CUST-0008,Robert Gonzalez,Small Business,East,2024-02-22
+CUST-0009,David Sanchez,Consumer,East,2024-11-05
+CUST-0010,Patricia Robinson,Consumer,West,2024-10-01
+CUST-0011,Anthony Lee,Consumer,Central,2024-05-30
+CUST-0012,Michael Thompson,Corporate,East,2024-10-22
+CUST-0013,Elizabeth Williams,Consumer,South,2025-01-30
+CUST-0014,David Anderson,Small Business,North,2024-07-13
+CUST-0015,Barbara Lopez,Corporate,East,2024-03-24
+CUST-0016,Sandra Perez,Consumer,East,2024-12-25
+CUST-0017,Jennifer Moore,Corporate,Central,2024-11-21
+CUST-0018,Richard Rodriguez,Corporate,South,2024-08-24
+CUST-0019,Nancy Hernandez,Small Business,Central,2024-04-22
+CUST-0020,Anthony Johnson,Small Business,North,2024-04-27
+CUST-0021,Robert Miller,Small Business,West,2024-05-17
+CUST-0022,Daniel Hernandez,Small Business,Central,2025-03-24
+CUST-0023,Mark Robinson,Consumer,West,2024-07-21
+CUST-0024,John Davis,Corporate,South,2024-05-15
+CUST-0025,Lisa Jackson,Corporate,Central,2024-05-14
+CUST-0026,Barbara Davis,Consumer,Central,2024-07-23
+CUST-0027,Jessica Williams,Small Business,South,2024-09-17
+CUST-0028,Christopher Garcia,Corporate,North,2024-03-19
+CUST-0029,Robert Gonzalez,Corporate,West,2024-11-01
+CUST-0030,David Moore,Consumer,West,2024-09-27
+CUST-0031,Lisa Brown,Small Business,North,2024-12-14
+CUST-0032,David Harris,Corporate,Central,2025-01-19
+CUST-0033,Susan Garcia,Corporate,North,2024-05-30
+CUST-0034,Matthew Garcia,Consumer,East,2024-09-13
+CUST-0035,Christopher Martinez,Corporate,North,2025-03-21
+CUST-0036,Michael Jones,Small Business,Central,2024-11-07
+CUST-0037,Matthew Robinson,Consumer,South,2024-10-03
+CUST-0038,William Thomas,Corporate,North,2024-11-02
+CUST-0039,Anthony Sanchez,Consumer,East,2025-03-25
+CUST-0040,Mark Jackson,Consumer,North,2024-05-03
+CUST-0041,Jessica Clark,Small Business,North,2025-01-09
+CUST-0042,John Jones,Consumer,Central,2025-01-27
+CUST-0043,David Taylor,Corporate,Central,2024-03-25
+CUST-0044,Sandra Moore,Small Business,West,2024-04-18
+CUST-0045,Elizabeth Gonzalez,Corporate,South,2024-12-31
+CUST-0046,Mark Taylor,Small Business,East,2024-08-12
+CUST-0047,Robert Hernandez,Consumer,South,2024-04-25
+CUST-0048,Charles Davis,Consumer,Central,2024-04-27
+CUST-0049,Robert Lewis,Consumer,North,2024-04-27
+CUST-0050,Thomas Davis,Consumer,East,2024-02-06
+CUST-0051,Sarah Jones,Consumer,West,2024-04-19
+CUST-0052,Jessica Davis,Corporate,Central,2024-10-22
+CUST-0053,Patricia Brown,Corporate,West,2024-04-07
+CUST-0054,Susan Anderson,Corporate,East,2024-08-04
+CUST-0055,Christopher Lee,Small Business,North,2024-12-10
+CUST-0056,William Sanchez,Consumer,West,2025-01-07
+CUST-0057,Michael Moore,Small Business,South,2024-04-08
+CUST-0058,David Anderson,Consumer,West,2024-04-03
+CUST-0059,Betty Ramirez,Consumer,North,2024-08-14
+CUST-0060,Christopher Moore,Small Business,North,2024-01-26
+CUST-0061,Margaret Davis,Small Business,North,2025-01-20
+CUST-0062,Michael Ramirez,Consumer,West,2024-09-03
+CUST-0063,Richard Smith,Consumer,North,2024-03-25
+CUST-0064,Betty Anderson,Small Business,East,2025-02-05
+CUST-0065,Daniel Thomas,Consumer,Central,2024-12-04
+CUST-0066,Mary Jackson,Consumer,East,2024-04-21
+CUST-0067,William Johnson,Corporate,North,2025-01-17
+CUST-0068,Sandra Ramirez,Consumer,West,2024-09-14
+CUST-0069,Robert Ramirez,Corporate,North,2024-09-17
+CUST-0070,Nancy Ramirez,Consumer,Central,2024-02-04
+CUST-0071,Linda Jackson,Consumer,North,2024-10-18
+CUST-0072,Susan Perez,Corporate,Central,2024-02-11
+CUST-0073,Sandra Rodriguez,Corporate,Central,2024-06-10
+CUST-0074,David Gonzalez,Consumer,East,2024-05-02
+CUST-0075,William Robinson,Consumer,East,2024-08-22
+CUST-0076,Joseph Martin,Corporate,North,2024-01-05
+CUST-0077,Sarah Miller,Small Business,North,2024-02-07
+CUST-0078,Mark Williams,Corporate,South,2024-06-27
+CUST-0079,Jennifer Anderson,Small Business,East,2024-05-25
+CUST-0080,Betty Lee,Small Business,East,2024-11-09
+CUST-0081,Sandra Perez,Corporate,Central,2024-06-02
+CUST-0082,Patricia Lewis,Consumer,South,2024-05-15
+CUST-0083,David Martinez,Consumer,Central,2024-03-20
+CUST-0084,Nancy Lee,Corporate,East,2024-04-14
+CUST-0085,David Lewis,Small Business,Central,2024-09-07
+CUST-0086,Christopher Wilson,Small Business,North,2024-02-17
+CUST-0087,William Harris,Small Business,North,2024-01-02
+CUST-0088,Lisa Anderson,Consumer,East,2024-03-23
+CUST-0089,James Brown,Corporate,West,2024-10-14
+CUST-0090,Mary Clark,Consumer,South,2024-10-06
+CUST-0091,Susan Jones,Consumer,Central,2024-03-16
+CUST-0092,Margaret Johnson,Consumer,East,2025-02-11
+CUST-0093,Linda Perez,Small Business,South,2024-12-15
+CUST-0094,Susan Martin,Consumer,Central,2025-03-23
+CUST-0095,Jennifer Sanchez,Corporate,South,2025-03-18
+CUST-0096,Jennifer White,Small Business,West,2024-01-13
+CUST-0097,Nancy Ramirez,Small Business,West,2025-02-14
+CUST-0098,Jennifer Sanchez,Corporate,South,2024-05-16
+CUST-0099,Mary Ramirez,Corporate,West,2025-03-22
+CUST-0100,Sandra Anderson,Consumer,South,2025-02-22
+CUST-0101,James Perez,Consumer,South,2024-04-24
+CUST-0102,Margaret Williams,Consumer,East,2024-05-22
+CUST-0103,Christopher Taylor,Small Business,East,2024-06-28
+CUST-0104,James Brown,Consumer,Central,2024-06-18
+CUST-0105,Charles Rodriguez,Small Business,East,2024-04-01
+CUST-0106,Barbara White,Consumer,Central,2024-08-10
+CUST-0107,Thomas Brown,Corporate,West,2024-11-06
+CUST-0108,David Johnson,Consumer,Central,2024-04-07
+CUST-0109,Sandra Sanchez,Corporate,North,2024-09-23
+CUST-0110,Susan Williams,Corporate,South,2024-07-05
+CUST-0111,William Perez,Small Business,East,2024-11-15
+CUST-0112,Elizabeth Perez,Small Business,East,2024-09-16
+CUST-0113,Elizabeth Moore,Consumer,West,2024-12-22
+CUST-0114,Richard Perez,Consumer,West,2024-12-06
+CUST-0115,Charles Martinez,Corporate,South,2024-11-11
+CUST-0116,Elizabeth Miller,Consumer,North,2024-06-04
+CUST-0117,Christopher Hernandez,Consumer,Central,2024-11-06
+CUST-0118,Michael Taylor,Consumer,West,2024-12-11
+CUST-0119,Robert Martinez,Consumer,South,2024-12-03
+CUST-0120,Robert Clark,Corporate,Central,2024-06-20
+CUST-0121,Elizabeth Davis,Small Business,South,2024-12-10
+CUST-0122,Mary Davis,Small Business,South,2024-01-13
+CUST-0123,Matthew Williams,Small Business,Central,2025-03-11
+CUST-0124,Daniel Thompson,Consumer,Central,2024-04-09
+CUST-0125,John Lee,Consumer,West,2024-05-04
+CUST-0126,Susan Davis,Corporate,North,2025-02-02
+CUST-0127,Mary Moore,Consumer,Central,2024-08-25
+CUST-0128,John Sanchez,Consumer,North,2024-08-21
+CUST-0129,Karen Hernandez,Consumer,Central,2024-10-13
+CUST-0130,Anthony White,Small Business,West,2024-11-09
+CUST-0131,Sandra Moore,Small Business,West,2025-03-01
+CUST-0132,Margaret Thomas,Consumer,South,2025-01-15
+CUST-0133,Christopher Rodriguez,Consumer,South,2025-03-06
+CUST-0134,Christopher Davis,Corporate,Central,2024-09-05
+CUST-0135,Elizabeth Davis,Consumer,North,2024-12-31
+CUST-0136,Robert Jones,Consumer,East,2024-10-03
+CUST-0137,John Thompson,Consumer,West,2024-12-21
+CUST-0138,William Moore,Consumer,West,2024-07-27
+CUST-0139,Anthony Wilson,Consumer,North,2024-04-15
+CUST-0140,James Ramirez,Consumer,Central,2024-12-22
+CUST-0141,Jessica Smith,Small Business,Central,2024-07-13
+CUST-0142,Richard Ramirez,Small Business,East,2025-01-20
+CUST-0143,Lisa White,Small Business,West,2024-10-02
+CUST-0144,Jessica Davis,Corporate,Central,2024-04-22
+CUST-0145,Richard Hernandez,Consumer,West,2024-01-15
+CUST-0146,Jennifer Clark,Corporate,West,2025-01-05
+CUST-0147,Sarah Smith,Consumer,South,2024-11-14
+CUST-0148,Nancy Smith,Small Business,Central,2024-10-15
+CUST-0149,Margaret Anderson,Consumer,West,2024-03-10
+CUST-0150,William Miller,Consumer,East,2024-07-13
+CUST-0151,Mark Gonzalez,Consumer,East,2025-01-24
+CUST-0152,Anthony Williams,Consumer,West,2024-05-09
+CUST-0153,Barbara Davis,Consumer,Central,2024-01-27
+CUST-0154,James Davis,Corporate,North,2025-01-21
+CUST-0155,John Davis,Consumer,North,2024-11-14
+CUST-0156,Michael Anderson,Consumer,North,2024-10-15
+CUST-0157,Karen Martin,Corporate,East,2024-03-26
+CUST-0158,Anthony Garcia,Small Business,North,2025-02-02
+CUST-0159,James Robinson,Small Business,North,2024-10-23
+CUST-0160,Daniel Miller,Consumer,West,2024-07-22
+CUST-0161,Daniel Harris,Consumer,South,2024-02-22
+CUST-0162,Patricia Sanchez,Consumer,Central,2025-02-16
+CUST-0163,Sarah Wilson,Small Business,North,2024-06-26
+CUST-0164,Christopher Hernandez,Corporate,North,2024-09-16
+CUST-0165,Jessica Brown,Consumer,West,2025-02-25
+CUST-0166,Mark Clark,Consumer,East,2024-11-21
+CUST-0167,Jennifer White,Consumer,South,2024-08-10
+CUST-0168,Betty Robinson,Corporate,East,2024-11-11
+CUST-0169,Susan Clark,Corporate,West,2024-08-26
+CUST-0170,Margaret Davis,Corporate,East,2024-06-14
+CUST-0171,Mark Anderson,Small Business,North,2024-05-22
+CUST-0172,Karen Perez,Consumer,West,2024-10-18
+CUST-0173,Margaret Hernandez,Consumer,North,2024-09-10
+CUST-0174,Betty Rodriguez,Consumer,South,2024-06-30
+CUST-0175,Mark Rodriguez,Consumer,Central,2024-12-25
+CUST-0176,Robert Davis,Corporate,Central,2024-04-07
+CUST-0177,Matthew Davis,Corporate,West,2024-10-11
+CUST-0178,Betty Smith,Corporate,West,2024-08-17
+CUST-0179,Daniel Davis,Consumer,South,2024-07-26
+CUST-0180,Jessica Moore,Consumer,Central,2024-07-07
+CUST-0181,Sarah Hernandez,Corporate,West,2025-01-16
+CUST-0182,Elizabeth Rodriguez,Consumer,West,2024-05-18
+CUST-0183,Patricia White,Consumer,South,2024-06-10
+CUST-0184,Michael White,Corporate,South,2024-04-08
+CUST-0185,Thomas Martin,Consumer,Central,2025-01-24
+CUST-0186,Michael Martinez,Consumer,North,2025-03-02
+CUST-0187,James Thompson,Consumer,South,2024-06-03
+CUST-0188,Mary Moore,Corporate,East,2024-01-24
+CUST-0189,Margaret Harris,Consumer,South,2024-11-22
+CUST-0190,Elizabeth Thomas,Consumer,North,2024-10-20
+CUST-0191,Mary Rodriguez,Consumer,East,2024-04-04
+CUST-0192,Anthony Williams,Small Business,West,2024-02-28
+CUST-0193,Christopher Perez,Consumer,North,2024-10-22
+CUST-0194,Charles Martinez,Consumer,South,2025-02-19
+CUST-0195,Sarah Harris,Consumer,South,2024-03-01
+CUST-0196,Karen Davis,Consumer,Central,2025-02-08
+CUST-0197,Sandra Anderson,Corporate,West,2024-08-18
+CUST-0198,Elizabeth Jackson,Consumer,Central,2024-08-07
+CUST-0199,Patricia Harris,Corporate,Central,2025-01-13
+CUST-0200,Nancy Williams,Consumer,South,2024-05-15

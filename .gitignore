@@ -1,0 +1,36 @@
+# Operating System
+.DS_Store
+Thumbs.db
+
+# Python
+analytics-service/venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Java & Maven
+backend/target/
+backend/data/
+*.class
+*.jar
+*.war
+.m2/
+
+# Node & Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.tmp/
+*.tsbuildinfo
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# Environment & Logs
+.env
+*.log

@@ -1,0 +1,28 @@
+product_id,product_name,category,sub_category,unit_cost,selling_price
+PROD-101,NovaBook Pro 15,Technology,Laptops,850.0,1299.0
+PROD-102,NovaBook Air 13,Technology,Laptops,650.0,999.0
+PROD-103,UltraDesk Studio PC,Technology,Laptops,1100.0,1699.0
+PROD-104,Ergo Wireless Mouse,Technology,Accessories,18.0,45.0
+PROD-105,Mechanical Keyboard RGB,Technology,Accessories,42.0,89.0
+PROD-106,USB-C Triple Hub,Technology,Accessories,22.0,59.0
+PROD-107,NovaSonic ANC Headphones,Technology,Audio,75.0,179.0
+PROD-108,ClearTone Wireless Earbuds,Technology,Audio,35.0,79.0
+PROD-109,Studio Conference Speaker,Technology,Audio,60.0,129.0
+PROD-110,UltraWide 34-inch 4K,Technology,Monitors,280.0,499.0
+PROD-111,ProColor 27-inch IPS,Technology,Monitors,180.0,319.0
+PROD-112,ErgoComfort Mesh Chair,Furniture,Chairs,160.0,249.0
+PROD-113,Executive Leather Recliner,Furniture,Chairs,230.0,329.0
+PROD-114,NovaLift Motorized Standing Desk,Furniture,Desks,310.0,479.0
+PROD-115,Compact Wood Workstation,Furniture,Desks,120.0,189.0
+PROD-116,Steel 3-Drawer Filing Cabinet,Furniture,Storage,65.0,119.0
+PROD-117,Modular Bamboo Bookcase,Furniture,Storage,85.0,149.0
+PROD-118,EcoBright Multipurpose Paper 500ct,Office Supplies,Paper,4.5,9.99
+PROD-119,Heavy Cardstock Premium 250ct,Office Supplies,Paper,6.0,14.99
+PROD-120,Heavy-Duty Presentation Binder 3-Ring,Office Supplies,Binders & Folders,3.2,7.99
+PROD-121,Expanding File Organizer 12-Tab,Office Supplies,Binders & Folders,5.5,12.99
+PROD-122,Gel Retractable Pens 12-Pack,Office Supplies,Writing,3.0,8.5
+PROD-123,Precision Highlighter Pack 6ct,Office Supplies,Writing,2.2,5.99
+PROD-124,NovaBreeze Performance Polo,Apparel,Activewear,16.0,39.0
+PROD-125,Thermal Core Fleece Jacket,Apparel,Activewear,28.0,69.0
+PROD-126,Tailored Stretch Chino,Apparel,Workwear,24.0,59.0
+PROD-127,Classic Oxford Button-Down,Apparel,Workwear,20.0,49.0

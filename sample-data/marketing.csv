@@ -1,0 +1,12 @@
+campaign_id,campaign_name,marketing_spend,campaign_revenue,campaign_date,channel
+CMP-101,Q4 Holiday Kickoff,12000.0,65000.0,2024-11-15,Email
+CMP-102,Cyber Week Blitz,25000.0,115000.0,2024-11-28,Search
+CMP-103,End of Year Tech Clearance,8000.0,28000.0,2024-12-20,Social Media
+CMP-104,New Year Workstation Refresh,14000.0,49000.0,2025-01-12,Email
+CMP-105,Spring Corporate Bulk Promo,18000.0,72000.0,2025-03-10,Search
+CMP-106,Earth Day Eco-Paper Drive,5000.0,14500.0,2025-04-22,Email
+CMP-107,Summer Tech Showcase,22000.0,54000.0,2025-06-15,Social Media
+CMP-108,Display Retargeting Wave 1,16000.0,11200.0,2025-07-20,Display
+CMP-109,Back to School Tech Sale,30000.0,128000.0,2025-08-15,Search
+CMP-110,Display Retargeting Wave 2,15000.0,10500.0,2025-09-10,Display
+CMP-111,Fall Executive Ergonomics,9000.0,38000.0,2025-10-05,Email
