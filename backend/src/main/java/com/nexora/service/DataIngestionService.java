@@ -23,11 +23,21 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class DataIngestionService {
+
+    private static final List<DateTimeFormatter> DATE_FORMATTERS = List.of(
+            DateTimeFormatter.ofPattern("yyyy-MM-dd"),
+            DateTimeFormatter.ofPattern("MM/dd/yyyy"),
+            DateTimeFormatter.ofPattern("M/d/yyyy"),
+            DateTimeFormatter.ofPattern("dd-MM-yyyy"),
+            DateTimeFormatter.ofPattern("dd/MM/yyyy"),
+            DateTimeFormatter.ofPattern("yyyy/MM/dd")
+    );
 
     private final CompanyRepository companyRepository;
     private final DatasetRepository datasetRepository;
@@ -80,6 +90,28 @@ public class DataIngestionService {
 
         if (records.isEmpty()) {
             throw new DataValidationException("No data rows found in uploaded file.");
+        }
+
+        // Auto-detect industry from column names if file doesn't match company industry
+        Set<String> colsNormalized = records.get(0).keySet().stream()
+                .map(k -> k.trim().toLowerCase().replaceAll("[_\\s-]+", ""))
+                .collect(java.util.stream.Collectors.toSet());
+        boolean hasRetailCols = colsNormalized.contains("sales") || colsNormalized.contains("orderid")
+                || colsNormalized.contains("profit") || colsNormalized.contains("subCategory".toLowerCase());
+        boolean hasBankCols = colsNormalized.contains("transactionid") || colsNormalized.contains("accountid")
+                || colsNormalized.contains("isfraud") || colsNormalized.contains("riskscore");
+        boolean hasMfgCols = colsNormalized.contains("batchid") || colsNormalized.contains("workcenter")
+                || colsNormalized.contains("plannedquantity") || colsNormalized.contains("defectivequantity");
+
+        if (hasRetailCols && !hasBankCols && !hasMfgCols && !industry.equals("RETAIL")) {
+            log.info("File columns suggest RETAIL data; overriding company industry '{}' for this upload", industry);
+            industry = "RETAIL";
+        } else if (hasBankCols && !industry.contains("BANK")) {
+            log.info("File columns suggest BANKING data; overriding company industry '{}' for this upload", industry);
+            industry = "BANKING";
+        } else if (hasMfgCols && !industry.contains("MANUF")) {
+            log.info("File columns suggest MANUFACTURING data; overriding company industry '{}' for this upload", industry);
+            industry = "MANUFACTURING";
         }
 
         // Call Python profiling endpoint to validate dataset and calculate quality score
@@ -168,28 +200,46 @@ public class DataIngestionService {
 
     private int persistOrders(String companyId, String datasetId, List<Map<String, Object>> records, Map<String, String> columnMapping) {
         List<OrderEntity> orderEntities = new ArrayList<>();
-        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
         for (int i = 0; i < records.size(); i++) {
             Map<String, Object> row = records.get(i);
             try {
                 String orderId = getVal(row, columnMapping, "order_id", "ORD-" + (10000 + i));
                 String dateStr = getVal(row, columnMapping, "order_date", LocalDate.now().toString());
-                LocalDate orderDate = LocalDate.now();
-                try {
-                    orderDate = LocalDate.parse(dateStr.substring(0, Math.min(10, dateStr.length())), dtf);
-                } catch (Exception ignored) {}
+                LocalDate orderDate = parseFlexibleDate(dateStr);
 
                 String customerId = getVal(row, columnMapping, "customer_id", "CUST-DEFAULT");
                 String productId = getVal(row, columnMapping, "product_id", "PROD-DEFAULT");
                 String region = getVal(row, columnMapping, "region", "Central");
-                int qty = parseInt(getVal(row, columnMapping, "quantity", "1"), 1);
-                BigDecimal unitPrice = parseDecimal(getVal(row, columnMapping, "unit_price", "50.0"), new BigDecimal("50.0"));
+                int qty = Math.max(1, parseInt(getVal(row, columnMapping, "quantity", "1"), 1));
                 BigDecimal discount = parseDecimal(getVal(row, columnMapping, "discount", "0.0"), BigDecimal.ZERO);
 
                 BigDecimal sales = parseDecimal(getVal(row, columnMapping, "sales", ""), null);
+
+                // Derive unit_price: prefer explicit column, then compute from sales
+                String unitPriceRaw = getVal(row, columnMapping, "unit_price", "");
+                BigDecimal unitPrice;
+                if (!unitPriceRaw.isEmpty()) {
+                    unitPrice = parseDecimal(unitPriceRaw, null);
+                } else {
+                    unitPrice = null;
+                }
+
+                if (sales == null && unitPrice != null) {
+                    BigDecimal discountFactor = BigDecimal.ONE.subtract(discount.abs().compareTo(BigDecimal.ONE) < 0 ? discount : discount.divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP));
+                    sales = unitPrice.multiply(BigDecimal.valueOf(qty)).multiply(discountFactor).setScale(2, RoundingMode.HALF_UP);
+                }
                 if (sales == null) {
-                    sales = unitPrice.multiply(BigDecimal.valueOf(qty)).multiply(BigDecimal.ONE.subtract(discount)).setScale(2, RoundingMode.HALF_UP);
+                    sales = new BigDecimal("50.00");
+                }
+                if (unitPrice == null) {
+                    // Back-calculate from sales: price = sales / (qty * (1 - discount))
+                    BigDecimal discountFactor = BigDecimal.ONE.subtract(discount.abs().compareTo(BigDecimal.ONE) < 0 ? discount : BigDecimal.ZERO);
+                    if (discountFactor.compareTo(BigDecimal.ZERO) > 0 && qty > 0) {
+                        unitPrice = sales.divide(BigDecimal.valueOf(qty).multiply(discountFactor), 2, RoundingMode.HALF_UP);
+                    } else {
+                        unitPrice = sales.divide(BigDecimal.valueOf(qty), 2, RoundingMode.HALF_UP);
+                    }
                 }
 
                 BigDecimal profit = parseDecimal(getVal(row, columnMapping, "profit", ""), null);
@@ -198,6 +248,7 @@ public class DataIngestionService {
                 }
 
                 String status = getVal(row, columnMapping, "order_status", "Completed");
+                if (status.isEmpty()) status = "Completed";
 
                 orderEntities.add(OrderEntity.builder()
                         .companyId(companyId)
@@ -224,17 +275,13 @@ public class DataIngestionService {
 
     private int persistBankTransactions(String companyId, String datasetId, List<Map<String, Object>> records, Map<String, String> columnMapping) {
         List<BankTransactionEntity> entities = new ArrayList<>();
-        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
         for (int i = 0; i < records.size(); i++) {
             Map<String, Object> row = records.get(i);
             try {
                 String txnId = getVal(row, columnMapping, "transaction_id", "TXN-" + (10000 + i));
                 String dateStr = getVal(row, columnMapping, "transaction_date", LocalDate.now().toString());
-                LocalDate txnDate = LocalDate.now();
-                try {
-                    txnDate = LocalDate.parse(dateStr.substring(0, Math.min(10, dateStr.length())), dtf);
-                } catch (Exception ignored) {}
+                LocalDate txnDate = parseFlexibleDate(dateStr);
 
                 String acctId = getVal(row, columnMapping, "account_id", "ACC-" + (1000 + (i % 200)));
                 String custId = getVal(row, columnMapping, "customer_id", "CUST-" + (100 + (i % 50)));
@@ -271,17 +318,13 @@ public class DataIngestionService {
 
     private int persistManufacturingBatches(String companyId, String datasetId, List<Map<String, Object>> records, Map<String, String> columnMapping) {
         List<ManufacturingBatchEntity> entities = new ArrayList<>();
-        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
         for (int i = 0; i < records.size(); i++) {
             Map<String, Object> row = records.get(i);
             try {
                 String batchId = getVal(row, columnMapping, "batch_id", "BATCH-" + (1000 + i));
                 String dateStr = getVal(row, columnMapping, "production_date", LocalDate.now().toString());
-                LocalDate prodDate = LocalDate.now();
-                try {
-                    prodDate = LocalDate.parse(dateStr.substring(0, Math.min(10, dateStr.length())), dtf);
-                } catch (Exception ignored) {}
+                LocalDate prodDate = parseFlexibleDate(dateStr);
 
                 String workCenter = getVal(row, columnMapping, "work_center", "Assembly Line 1");
                 String productCode = getVal(row, columnMapping, "product_code", "PART-001");
@@ -326,6 +369,39 @@ public class DataIngestionService {
         return trimmed.equals("true") || trimmed.equals("1") || trimmed.equals("yes") || trimmed.equals("t");
     }
 
+    /**
+     * Parses a date string in multiple common formats.
+     * Superstore uses M/d/yy (e.g. "1/3/2019"), ISO uses yyyy-MM-dd.
+     * Falls back to today if unparseable.
+     */
+    private LocalDate parseFlexibleDate(String dateStr) {
+        if (dateStr == null || dateStr.trim().isEmpty()) return LocalDate.now();
+        String s = dateStr.trim();
+        // Try ISO first (most common in CSV/system data)
+        for (DateTimeFormatter fmt : DATE_FORMATTERS) {
+            try {
+                return LocalDate.parse(s.length() > 10 ? s.substring(0, 10) : s, fmt);
+            } catch (Exception ignored) {}
+        }
+        // Try MM/dd/yyyy or M/d/yyyy patterns
+        String[] parts = s.split("[/\\-\\.]");
+        if (parts.length == 3) {
+            try {
+                int p0 = Integer.parseInt(parts[0]);
+                int p1 = Integer.parseInt(parts[1]);
+                int p2 = Integer.parseInt(parts[2]);
+                // If last part is 4-digit year: M/d/yyyy
+                if (p2 > 999) return LocalDate.of(p2, p0, p1);
+                // If first part is 4-digit year: yyyy/M/d
+                if (p0 > 999) return LocalDate.of(p0, p1, p2);
+                // 2-digit year: assume 2000+
+                if (p2 < 100) return LocalDate.of(2000 + p2, p0, p1);
+            } catch (Exception ignored) {}
+        }
+        log.warn("Could not parse date '{}', using today", dateStr);
+        return LocalDate.now();
+    }
+
     private List<Map<String, Object>> parseCsv(InputStream is) throws IOException {
         List<Map<String, Object>> rows = new ArrayList<>();
         try (Reader reader = new InputStreamReader(is);
@@ -347,7 +423,8 @@ public class DataIngestionService {
 
         List<String> headers = new ArrayList<>();
         for (Cell cell : headerRow) {
-            headers.add(cell.getStringCellValue().trim());
+            // Use safe cell-to-string so non-string header cells don't throw
+            headers.add(cellToString(cell).trim());
         }
 
         for (int r = 1; r <= sheet.getLastRowNum(); r++) {
@@ -357,32 +434,54 @@ public class DataIngestionService {
             Map<String, Object> map = new HashMap<>();
             boolean hasData = false;
             for (int c = 0; c < headers.size(); c++) {
+                String header = headers.get(c);
+                if (header.isEmpty()) continue; // skip unnamed columns
                 Cell cell = row.getCell(c);
-                String val = "";
-                if (cell != null) {
-                    if (cell.getCellType() == CellType.STRING) {
-                        val = cell.getStringCellValue();
-                    } else if (cell.getCellType() == CellType.NUMERIC) {
-                        if (DateUtil.isCellDateFormatted(cell)) {
-                            val = cell.getLocalDateTimeCellValue().toLocalDate().toString();
-                        } else {
-                            val = String.valueOf(cell.getNumericCellValue());
-                        }
-                    } else if (cell.getCellType() == CellType.BOOLEAN) {
-                        val = String.valueOf(cell.getBooleanCellValue());
-                    } else {
-                        val = cell.toString();
-                    }
-                }
+                String val = cellToString(cell);
                 if (!val.trim().isEmpty()) hasData = true;
-                map.put(headers.get(c), val);
+                map.put(header, val);
             }
             if (hasData) rows.add(map);
         }
         return rows;
     }
 
+    /**
+     * Converts any cell type to a clean string value.
+     * Numeric cells are formatted without scientific notation or floating-point artifacts.
+     */
+    private String cellToString(Cell cell) {
+        if (cell == null) return "";
+        switch (cell.getCellType()) {
+            case STRING:
+                return cell.getStringCellValue();
+            case NUMERIC:
+                if (DateUtil.isCellDateFormatted(cell)) {
+                    return cell.getLocalDateTimeCellValue().toLocalDate().toString();
+                }
+                // Avoid floating-point noise like "261.96000000000003"
+                double d = cell.getNumericCellValue();
+                if (d == Math.floor(d) && !Double.isInfinite(d) && Math.abs(d) < 1e15) {
+                    return String.valueOf((long) d);
+                }
+                return java.math.BigDecimal.valueOf(d).stripTrailingZeros().toPlainString();
+            case BOOLEAN:
+                return String.valueOf(cell.getBooleanCellValue());
+            case FORMULA:
+                try { return cell.getStringCellValue(); } catch (Exception e2) {
+                    try {
+                        double fd = cell.getNumericCellValue();
+                        return java.math.BigDecimal.valueOf(fd).stripTrailingZeros().toPlainString();
+                    } catch (Exception e3) { return ""; }
+                }
+            default:
+                String s = cell.toString();
+                return s == null ? "" : s;
+        }
+    }
+
     private String getVal(Map<String, Object> row, Map<String, String> mapping, String targetCanonical, String fallback) {
+        // 1. Use explicit column mapping provided by profiling service
         for (Map.Entry<String, String> entry : mapping.entrySet()) {
             if (entry.getValue().equalsIgnoreCase(targetCanonical)) {
                 Object val = row.get(entry.getKey());
@@ -391,10 +490,21 @@ public class DataIngestionService {
                 }
             }
         }
+        String targetNormalized = targetCanonical.toLowerCase().replaceAll("[_\\s-]+", "");
+        // 2. Exact normalized match (e.g. "Order ID" -> "orderid" == "order_id" -> "orderid")
         for (Map.Entry<String, Object> entry : row.entrySet()) {
             String colNormalized = entry.getKey().trim().toLowerCase().replaceAll("[_\\s-]+", "");
-            String targetNormalized = targetCanonical.replaceAll("[_\\s-]+", "");
-            if (colNormalized.equals(targetNormalized) || colNormalized.contains(targetNormalized)) {
+            if (colNormalized.equals(targetNormalized)) {
+                Object val = entry.getValue();
+                if (val != null && !val.toString().trim().isEmpty()) {
+                    return val.toString().trim();
+                }
+            }
+        }
+        // 3. Starts-with match (e.g. target="sales" matches column "Sales Amount")
+        for (Map.Entry<String, Object> entry : row.entrySet()) {
+            String colNormalized = entry.getKey().trim().toLowerCase().replaceAll("[_\\s-]+", "");
+            if (colNormalized.startsWith(targetNormalized) || targetNormalized.startsWith(colNormalized)) {
                 Object val = entry.getValue();
                 if (val != null && !val.toString().trim().isEmpty()) {
                     return val.toString().trim();
