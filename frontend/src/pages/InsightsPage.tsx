@@ -90,7 +90,15 @@ export const InsightsPage: React.FC<{ filters: FilterState }> = ({ filters }) =>
       </div>
 
       {/* Signature Root Cause Card */}
-      {rootCause && (
+      {rootCause && rootCause.status === 'INSUFFICIENT_DATA' ? (
+        <div className="bg-white rounded-xl border border-slate-200 p-8 text-center space-y-3">
+          <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto" />
+          <h3 className="text-base font-bold text-slate-800">Insufficient Data for Variance Decomposition</h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            {rootCause.message || 'At least two time periods of business data are required to calculate volume, price elasticity, and dimensional variance decomposition.'}
+          </p>
+        </div>
+      ) : rootCause && rootCause.percentage_change != null ? (
         <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
           {/* Header Banner */}
           <div className="bg-slate-900 text-white p-6">
@@ -100,11 +108,11 @@ export const InsightsPage: React.FC<{ filters: FilterState }> = ({ filters }) =>
                   Variance Decomposition Matrix
                 </span>
                 <h2 className="text-xl font-bold mt-1">
-                  Target Metric: {targetKpi.toUpperCase()} ({rootCause.percentage_change >= 0 ? '+' : ''}
-                  {rootCause.percentage_change.toFixed(1)}% / ${rootCause.absolute_change.toLocaleString('en-US', { minimumFractionDigits: 2 })})
+                  Target Metric: {targetKpi.toUpperCase()} ({(rootCause.percentage_change ?? 0) >= 0 ? '+' : ''}
+                  {(rootCause.percentage_change ?? 0).toFixed(1)}% / ${((rootCause.absolute_change ?? 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })})
                 </h2>
                 <p className="text-xs text-slate-400 mt-1">
-                  Baseline: ${rootCause.previous_period_value.toLocaleString()} &rarr; Current: ${rootCause.current_period_value.toLocaleString()}
+                  Baseline: ${rootCause.previous_period_value?.toLocaleString() || '0'} &rarr; Current: ${rootCause.current_period_value?.toLocaleString() || '0'}
                 </p>
               </div>
 
@@ -232,7 +240,7 @@ export const InsightsPage: React.FC<{ filters: FilterState }> = ({ filters }) =>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Prioritized AI Insights List */}
       <div className="space-y-4">

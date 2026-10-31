@@ -379,8 +379,9 @@ public class DemoDataInitializationService implements CommandLineRunner {
 
     private String findSampleDataDir() {
         String[] possiblePaths = {
-                "../sample-data",
+                "/app/sample-data",
                 "sample-data",
+                "../sample-data",
                 "/Users/lucky/Downloads/nexora/sample-data"
         };
         for (String p : possiblePaths) {

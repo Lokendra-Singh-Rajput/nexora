@@ -56,6 +56,8 @@ services:
         condition: service_healthy
       analytics:
         condition: service_healthy
+    volumes:
+      - ./sample-data:/app/sample-data:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/api/v1/companies || exit 1"]
       interval: 15s

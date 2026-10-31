@@ -177,12 +177,14 @@ export interface RootCauseDimension {
 }
 
 export interface RootCauseAnalysis {
+  status?: string;
+  message?: string;
   investigated_kpi?: string;
   target_kpi?: string;
-  current_period_value: number;
-  previous_period_value: number;
-  absolute_change: number;
-  percentage_change: number;
+  current_period_value?: number;
+  previous_period_value?: number;
+  absolute_change?: number;
+  percentage_change?: number;
   variance_decomposition: {
     order_volume_effect: number;
     aov_effect: number;
