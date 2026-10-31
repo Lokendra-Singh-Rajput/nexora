@@ -1,0 +1,44 @@
+name: Deploy to AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Production EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Execute Deployment via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+            echo "=========================================="
+            echo " Starting Automated Deployment on EC2"
+            echo "=========================================="
+            cd ~/nexora
+            git pull origin main
+            sudo ./deploy/deploy.sh
+            echo "Deployment finished successfully!"
+
+      - name: Verify Live Platform Health
+        run: |
+          echo "Verifying live endpoint..."
+          sleep 5
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://nexora-analyst.duckdns.org/health || echo "000")
+          if [ "$STATUS" = "200" ] || [ "$STATUS" = "301" ]; then
+            echo "Deployment verified! Platform is healthy (HTTP $STATUS)."
+          else
+            echo "Endpoint check warning (HTTP $STATUS), checking homepage..."
+            curl -f -s -I https://nexora-analyst.duckdns.org/ || exit 1
+          fi
