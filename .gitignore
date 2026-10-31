@@ -31,6 +31,25 @@ frontend/.tmp/
 .vscode/
 *.iml
 
-# Environment & Logs
+# Security & Secrets (NEVER push credentials or keys)
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.crt
+id_rsa*
+*.secret
+
+# Documentation & Markdown Files (Per User Instruction)
+*.md
+docs/
+scratch/
+
+# Local Audit Scripts
+audit_*.py
+/tmp/nexora.tar.gz
+
+# Logs
 *.log

@@ -200,7 +200,7 @@ export const InsightsPage: React.FC<{ filters: FilterState }> = ({ filters }) =>
                   <span>Synthesized Business Drivers</span>
                 </div>
                 <ul className="space-y-1.5 text-xs text-indigo-950">
-                  {rootCause.potential_explanations.map((exp, i) => (
+                  {(rootCause.potential_explanations || []).map((exp, i) => (
                     <li key={i} className="flex items-start gap-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0 mt-1.5"></span>
                       <span>{exp}</span>
@@ -215,7 +215,7 @@ export const InsightsPage: React.FC<{ filters: FilterState }> = ({ filters }) =>
                   <span>Actionable Management Prescriptions</span>
                 </div>
                 <ul className="space-y-1.5 text-xs text-emerald-950">
-                  {rootCause.suggested_actions.map((act, i) => (
+                  {(rootCause.suggested_actions || []).map((act, i) => (
                     <li key={i} className="flex items-start gap-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0 mt-1.5"></span>
                       <span>{act}</span>

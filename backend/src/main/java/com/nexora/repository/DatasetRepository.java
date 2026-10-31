@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface DatasetRepository extends JpaRepository<Dataset, String> {
     List<Dataset> findByCompanyIdOrderByCreatedAtDesc(String companyId);
     Optional<Dataset> findTopByCompanyIdOrderByVersionDesc(String companyId);
+    long countByCompanyId(String companyId);
 }

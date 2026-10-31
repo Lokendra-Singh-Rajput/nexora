@@ -4,7 +4,7 @@ import { TrendingUp, TrendingDown, Minus, Info } from 'lucide-react';
 
 interface KpiCardProps {
   title: string;
-  metric: KpiValue;
+  metric?: KpiValue;
   format?: 'currency' | 'number' | 'percent';
   description?: string;
   invertColors?: boolean; // For return rate or cost where increase is negative
@@ -17,7 +17,14 @@ export const KpiCard: React.FC<KpiCardProps> = ({
   description,
   invertColors = false
 }) => {
-  if (!metric) return null;
+  if (!metric) {
+    return (
+      <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-xs flex flex-col justify-between">
+        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{title}</span>
+        <div className="text-xl font-bold font-mono text-slate-300 mt-2">N/A</div>
+      </div>
+    );
+  }
 
   const formatVal = (val: number) => {
     if (val === undefined || val === null || isNaN(val)) return '0';

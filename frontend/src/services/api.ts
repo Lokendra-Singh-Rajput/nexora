@@ -126,5 +126,10 @@ export const apiService = {
   async listCompanies(): Promise<any[]> {
     const resp = await client.get('/companies');
     return resp.data.data;
+  },
+
+  async createCompany(data: { name: string; industry: string; id?: string; description?: string }): Promise<any> {
+    const resp = await client.post('/companies', data);
+    return resp.data.data;
   }
 };

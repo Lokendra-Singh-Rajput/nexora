@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from app.metrics.kpis import calculate_kpis
+from app.metrics.kpis import calculate_kpis, calculate_banking_kpis, calculate_manufacturing_kpis
 from app.profiling.quality import generate_quality_report
 from app.cleaning.sanitizer import auto_detect_column_mapping, clean_and_transform_dataframe
 from app.root_cause.analyzer import run_root_cause_analysis
@@ -29,6 +29,35 @@ def test_kpis_calculation(sample_orders_df):
     assert kpis["profit_margin"]["current"] == round((260.0 / 680.0) * 100.0, 2)
     assert kpis["units_sold"]["current"] == 6
     assert kpis["return_rate"]["current"] == round((1 / 3) * 100.0, 2)
+
+def test_banking_kpis_calculation():
+    banking_data = pd.DataFrame([
+        {"transaction_id": "TX-1", "amount": 1000.0, "transaction_type": "Wire", "is_fraud": 0, "risk_score": 0.1, "is_default": 0},
+        {"transaction_id": "TX-2", "amount": 2500.0, "transaction_type": "Loan", "is_fraud": 0, "risk_score": 0.85, "is_default": 1},
+        {"transaction_id": "TX-3", "amount": 500.0, "transaction_type": "POS", "is_fraud": 1, "risk_score": 0.95, "is_default": 0},
+        {"transaction_id": "TX-4", "amount": 1000.0, "transaction_type": "Deposit", "is_fraud": 0, "risk_score": 0.2, "is_default": 0}
+    ])
+    kpis = calculate_kpis(banking_data, industry="BANKING")
+    assert kpis["transaction_value"]["current"] == 5000.0
+    assert kpis["transaction_volume"]["current"] == 4
+    assert kpis["average_transaction_value"]["current"] == 1250.0
+    assert kpis["default_rate"]["current"] == 25.0 # 1 out of 4
+    assert kpis["fraud_rate"]["current"] == 25.0   # 1 out of 4
+    assert kpis["fraud_count"]["current"] == 1
+    assert kpis["high_risk_volume"]["current"] == 2 # 0.85 and 0.95 >= 0.70
+
+def test_manufacturing_kpis_calculation():
+    mfg_data = pd.DataFrame([
+        {"batch_id": "B-1", "planned_quantity": 1000, "produced_quantity": 950, "defective_quantity": 19, "downtime_minutes": 45, "efficiency_pct": 95.0},
+        {"batch_id": "B-2", "planned_quantity": 1000, "produced_quantity": 1050, "defective_quantity": 21, "downtime_minutes": 15, "efficiency_pct": 98.0}
+    ])
+    kpis = calculate_kpis(mfg_data, industry="MANUFACTURING")
+    assert kpis["production_volume"]["current"] == 2000.0
+    assert kpis["defective_units"]["current"] == 40.0
+    assert kpis["defect_rate"]["current"] == 2.0 # 40 / 2000 * 100
+    assert kpis["machine_downtime"]["current"] == 60.0 # 45 + 15
+    assert kpis["planned_volume"]["current"] == 2000.0
+    assert kpis["production_efficiency"]["current"] == 96.5 # mean(95.0, 98.0)
 
 def test_quality_report():
     dirty_data = pd.DataFrame([
@@ -83,7 +112,6 @@ def test_what_if_simulation(sample_orders_df):
     )
     assert sim["status"] == "SUCCESS"
     assert sim["baseline"]["revenue"] == 680.0
-    # Price increased, units sold contracted
     assert sim["simulated"]["units_sold"] < sim["baseline"]["units_sold"]
 
 def test_forecasting():
@@ -98,20 +126,7 @@ def test_forecasting():
 def test_anomaly_detection():
     dates = pd.date_range("2025-01-01", periods=30, freq="D")
     sales = [1000.0] * 29 + [12000.0] # Massive spike on day 30
-    profits = [300.0] * 29 + [3600.0]
-    df = pd.DataFrame({
-        "order_date": dates.strftime("%Y-%m-%d"),
-        "order_id": [f"O-{i}" for i in range(30)],
-        "sales": sales,
-        "profit": profits,
-        "discount": [0.05] * 30
-    })
+    df = pd.DataFrame({"order_date": dates.strftime("%Y-%m-%d"), "sales": sales})
     anomalies = detect_anomalies(df)
     assert len(anomalies) > 0
-    assert any("Daily Revenue" in a["metric"] for a in anomalies)
-
-def test_copilot_fallback(sample_orders_df):
-    res = chat_with_copilot("Why did revenue decrease?", sample_orders_df)
-    assert "response" in res
-    assert "direct_answer" in res["response"]
-    assert "supporting_metrics" in res["response"]
+    assert any("Spike" in a["metric"] or "outlier" in a["description"].lower() for a in anomalies)

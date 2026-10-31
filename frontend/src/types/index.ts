@@ -7,34 +7,95 @@ export interface KpiValue {
 }
 
 export interface KpiSummary {
-  revenue: KpiValue;
-  profit: KpiValue;
-  profit_margin: KpiValue;
-  total_orders: KpiValue;
-  average_order_value: KpiValue;
-  units_sold: KpiValue;
-  return_rate: KpiValue;
-  total_customers: KpiValue;
+  // Retail
+  revenue?: KpiValue;
+  profit?: KpiValue;
+  profit_margin?: KpiValue;
+  total_orders?: KpiValue;
+  average_order_value?: KpiValue;
+  units_sold?: KpiValue;
+  return_rate?: KpiValue;
+  total_customers?: KpiValue;
+
+  // Banking
+  transaction_value?: KpiValue;
+  transaction_volume?: KpiValue;
+  average_transaction_value?: KpiValue;
+  default_rate?: KpiValue;
+  fraud_rate?: KpiValue;
+  fraud_count?: KpiValue;
+  high_risk_volume?: KpiValue;
+
+  // Manufacturing
+  production_volume?: KpiValue;
+  defect_rate?: KpiValue;
+  production_efficiency?: KpiValue;
+  machine_downtime?: KpiValue;
+  defective_units?: KpiValue;
+  planned_volume?: KpiValue;
+
+  [key: string]: KpiValue | undefined;
+}
+
+export interface Company {
+  id: string;
+  name: string;
+  industry: string;
+  description?: string;
+  recordCount?: number;
+  datasetCount?: number;
+  createdAt?: string;
+}
+
+export interface ExecutiveOverviewData {
+  kpis: KpiSummary;
+  sales?: any;
+  trends?: any;
+  products?: any;
+  customers?: any;
+  meta: {
+    companyId: string;
+    companyName: string;
+    industry: string;
+    recordCount: number;
+    previousRecordCount?: number;
+    refreshedAt: string;
+  };
 }
 
 export interface DailyTrendPoint {
   date: string;
-  revenue: number;
-  profit: number;
-  orders: number;
-  units: number;
-  aov: number;
-  profit_margin: number;
+  revenue?: number;
+  profit?: number;
+  orders?: number;
+  units?: number;
+  aov?: number;
+  profit_margin?: number;
+  // Banking
+  transaction_value?: number;
+  transaction_volume?: number;
+  fraud_count?: number;
+  default_count?: number;
+  // Manufacturing
+  production_volume?: number;
+  planned_volume?: number;
+  defective_units?: number;
+  downtime_minutes?: number;
+  defect_rate?: number;
 }
 
 export interface MonthlyTrendPoint {
   month_str: string;
-  revenue: number;
-  profit: number;
-  orders: number;
-  units: number;
-  aov: number;
-  profit_margin: number;
+  revenue?: number;
+  profit?: number;
+  orders?: number;
+  units?: number;
+  aov?: number;
+  profit_margin?: number;
+  transaction_value?: number;
+  transaction_volume?: number;
+  production_volume?: number;
+  defect_rate?: number;
 }
 
 export interface RegionalPerformance {
@@ -98,27 +159,11 @@ export interface CustomerSegment {
   segment: string;
   revenue: number;
   profit: number;
-  orders: number;
-  customers: number;
-  revenue_share: number;
-  profit_margin: number;
-  aov: number;
-}
-
-export interface FrequencyBracket {
-  frequency_bracket: string;
   customer_count: number;
-  percentage: number;
-}
-
-export interface TopCustomer {
-  customer_id: string;
-  customer_name: string;
-  segment: string;
-  total_spent: number;
-  total_profit: number;
-  orders_count: number;
-  units_bought: number;
+  order_count: number;
+  aov: number;
+  profit_margin: number;
+  revenue_share: number;
 }
 
 export interface RootCauseDimension {
@@ -132,7 +177,8 @@ export interface RootCauseDimension {
 }
 
 export interface RootCauseAnalysis {
-  investigated_kpi: string;
+  investigated_kpi?: string;
+  target_kpi?: string;
   current_period_value: number;
   previous_period_value: number;
   absolute_change: number;
@@ -141,46 +187,69 @@ export interface RootCauseAnalysis {
     order_volume_effect: number;
     aov_effect: number;
     interaction_effect: number;
+    sum_of_effects?: number;
+    residual_discrepancy?: number;
   };
   dimension_breakdowns: {
     by_region: RootCauseDimension[];
     by_category: RootCauseDimension[];
-    top_decliners_products: RootCauseDimension[];
-    top_growers_products: RootCauseDimension[];
+    top_decliners_products?: RootCauseDimension[];
+    top_growers_products?: RootCauseDimension[];
+    [key: string]: any;
   };
-  potential_explanations: string[];
-  suggested_actions: string[];
-  evidence_limitations: string;
+  potential_explanations?: string[];
+  suggested_actions?: string[];
+  evidence_limitations?: string;
+  diagnostic_summary?: {
+    primary_driver_type: string;
+    dominant_dimension: string;
+    key_findings: string[];
+    recommended_focus_areas: string[];
+  };
 }
 
 export interface ForecastPoint {
   date: string;
-  actual: number | null;
-  forecast: number | null;
-  lower_bound: number | null;
-  upper_bound: number | null;
+  actual?: number | null;
+  forecast?: number | null;
+  actual_sales?: number;
+  forecast_sales?: number;
+  lower_bound?: number | null;
+  upper_bound?: number | null;
+  is_projection?: boolean;
 }
 
 export interface ForecastResult {
   status: string;
   model_selected: string;
   forecast_horizon_days: number;
+  projected_total_revenue_30d: number;
+  historical_actual_total_30d?: number;
+  projected_growth_rate?: number;
   evaluation_metrics: {
     mae: number;
     rmse: number;
     mape: number;
     wape: number;
   };
-  all_model_evaluations: Array<{
+  all_model_evaluations?: Array<{
     model: string;
     mae: number;
     rmse: number;
     mape: number;
     wape: number;
   }>;
-  historical_plus_forecast: ForecastPoint[];
+  candidate_model_evaluations?: Array<{
+    model_name: string;
+    mae: number;
+    rmse: number;
+    wape: number;
+    selected: boolean;
+  }>;
+  historical_plus_forecast?: ForecastPoint[];
+  time_series?: ForecastPoint[];
   forecast_only: ForecastPoint[];
-  projected_total_revenue_30d: number;
+  assumptions_and_limitations?: string[];
 }
 
 export interface AnomalyItem {
@@ -191,12 +260,15 @@ export interface AnomalyItem {
   expected_range: any[];
   deviation: number;
   detection_method: string;
-  severity: 'HIGH' | 'MEDIUM' | 'LOW';
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM';
+  description?: string;
   explanation: string;
 }
 
 export interface BusinessInsight {
-  insight_id: string;
+  insight_id?: string;
+  id?: string;
+  category: string;
   title: string;
   business_area: string;
   priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';

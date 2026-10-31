@@ -22,11 +22,14 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AnalyticsOrchestrationService {
 
+    private final CompanyRepository companyRepository;
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
     private final CustomerRepository customerRepository;
     private final InventoryRepository inventoryRepository;
     private final MarketingRepository marketingRepository;
+    private final BankTransactionRepository bankTransactionRepository;
+    private final ManufacturingBatchRepository manufacturingBatchRepository;
     private final RestTemplate restTemplate;
 
     @Value("${analytics.service.url:http://localhost:8000}")
@@ -34,6 +37,21 @@ public class AnalyticsOrchestrationService {
 
     public Map<String, Object> getExecutiveOverview(FilterCriteriaDto filters) {
         String companyId = getCompanyId(filters);
+        Company company = companyRepository.findById(companyId)
+                .orElseGet(() -> Company.builder().id(companyId).name(companyId).industry("RETAIL").build());
+        String industry = company.getIndustry() != null ? company.getIndustry().toUpperCase(Locale.ROOT) : "RETAIL";
+
+        if (industry.contains("BANK")) {
+            return getBankingOverview(company, filters);
+        } else if (industry.contains("MANUF")) {
+            return getManufacturingOverview(company, filters);
+        } else {
+            return getRetailOverview(company, filters);
+        }
+    }
+
+    private Map<String, Object> getRetailOverview(Company company, FilterCriteriaDto filters) {
+        String companyId = company.getId();
         List<OrderEntity> currentOrders = queryOrders(filters);
         List<OrderEntity> previousOrders;
 
@@ -58,6 +76,7 @@ public class AnalyticsOrchestrationService {
         payload.put("previous_orders", toOrderMaps(previousOrders));
         payload.put("products", toProductMaps(products));
         payload.put("customers", toCustomerMaps(customers));
+        payload.put("industry", "RETAIL");
 
         Map<String, Object> kpis = callPythonEndpoint("/api/v1/analytics/kpis", payload);
         Map<String, Object> salesAnalytics = callPythonEndpoint("/api/v1/analytics/sales", payload);
@@ -71,6 +90,8 @@ public class AnalyticsOrchestrationService {
         response.put("customers", customerAnalytics);
         response.put("meta", Map.of(
                 "companyId", companyId,
+                "companyName", company.getName(),
+                "industry", "RETAIL",
                 "recordCount", currentOrders.size(),
                 "previousRecordCount", previousOrders.size(),
                 "refreshedAt", new Date()
@@ -79,16 +100,117 @@ public class AnalyticsOrchestrationService {
         return response;
     }
 
+    private Map<String, Object> getBankingOverview(Company company, FilterCriteriaDto filters) {
+        String companyId = company.getId();
+        List<BankTransactionEntity> currentTxns = queryBankTransactions(filters);
+        List<BankTransactionEntity> previousTxns = new ArrayList<>();
+
+        if (!currentTxns.isEmpty()) {
+            LocalDate minDate = currentTxns.stream().map(BankTransactionEntity::getTransactionDate).min(LocalDate::compareTo).orElse(LocalDate.now());
+            LocalDate maxDate = currentTxns.stream().map(BankTransactionEntity::getTransactionDate).max(LocalDate::compareTo).orElse(LocalDate.now());
+            long totalDays = ChronoUnit.DAYS.between(minDate, maxDate);
+            LocalDate midDate = minDate.plusDays(Math.max(1, totalDays / 2));
+
+            previousTxns = currentTxns.stream()
+                    .filter(t -> !t.getTransactionDate().isAfter(midDate))
+                    .collect(Collectors.toList());
+        }
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("records", toBankTransactionMaps(currentTxns));
+        payload.put("previous_records", toBankTransactionMaps(previousTxns));
+        payload.put("industry", "BANKING");
+
+        Map<String, Object> kpis = callPythonEndpoint("/api/v1/analytics/kpis", payload);
+        Map<String, Object> trends = callPythonEndpoint("/api/v1/analytics/trends", payload);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("kpis", kpis);
+        response.put("trends", trends);
+        response.put("sales", trends); // compatible field for charts
+        response.put("meta", Map.of(
+                "companyId", companyId,
+                "companyName", company.getName(),
+                "industry", "BANKING",
+                "recordCount", currentTxns.size(),
+                "previousRecordCount", previousTxns.size(),
+                "refreshedAt", new Date()
+        ));
+
+        return response;
+    }
+
+    private Map<String, Object> getManufacturingOverview(Company company, FilterCriteriaDto filters) {
+        String companyId = company.getId();
+        List<ManufacturingBatchEntity> currentBatches = queryManufacturingBatches(filters);
+        List<ManufacturingBatchEntity> previousBatches = new ArrayList<>();
+
+        if (!currentBatches.isEmpty()) {
+            LocalDate minDate = currentBatches.stream().map(ManufacturingBatchEntity::getProductionDate).min(LocalDate::compareTo).orElse(LocalDate.now());
+            LocalDate maxDate = currentBatches.stream().map(ManufacturingBatchEntity::getProductionDate).max(LocalDate::compareTo).orElse(LocalDate.now());
+            long totalDays = ChronoUnit.DAYS.between(minDate, maxDate);
+            LocalDate midDate = minDate.plusDays(Math.max(1, totalDays / 2));
+
+            previousBatches = currentBatches.stream()
+                    .filter(b -> !b.getProductionDate().isAfter(midDate))
+                    .collect(Collectors.toList());
+        }
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("records", toManufacturingBatchMaps(currentBatches));
+        payload.put("previous_records", toManufacturingBatchMaps(previousBatches));
+        payload.put("industry", "MANUFACTURING");
+
+        Map<String, Object> kpis = callPythonEndpoint("/api/v1/analytics/kpis", payload);
+        Map<String, Object> trends = callPythonEndpoint("/api/v1/analytics/trends", payload);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("kpis", kpis);
+        response.put("trends", trends);
+        response.put("sales", trends); // compatible field for charts
+        response.put("meta", Map.of(
+                "companyId", companyId,
+                "companyName", company.getName(),
+                "industry", "MANUFACTURING",
+                "recordCount", currentBatches.size(),
+                "previousRecordCount", previousBatches.size(),
+                "refreshedAt", new Date()
+        ));
+
+        return response;
+    }
+
     public Map<String, Object> getSalesAnalytics(FilterCriteriaDto filters) {
         String companyId = getCompanyId(filters);
-        List<OrderEntity> orders = queryOrders(filters);
-        List<ProductEntity> products = productRepository.findByCompanyId(companyId);
+        Company company = companyRepository.findById(companyId)
+                .orElseGet(() -> Company.builder().id(companyId).name(companyId).industry("RETAIL").build());
+        String industry = company.getIndustry() != null ? company.getIndustry().toUpperCase(Locale.ROOT) : "RETAIL";
 
-        Map<String, Object> payload = Map.of(
-                "orders", toOrderMaps(orders),
-                "products", toProductMaps(products)
-        );
-        return callPythonEndpoint("/api/v1/analytics/sales", payload);
+        if (industry.contains("BANK")) {
+            List<BankTransactionEntity> txns = queryBankTransactions(filters);
+            Map<String, Object> payload = Map.of(
+                    "records", toBankTransactionMaps(txns),
+                    "industry", "BANKING"
+            );
+            return callPythonEndpoint("/api/v1/analytics/trends", payload);
+        } else if (industry.contains("MANUF")) {
+            List<ManufacturingBatchEntity> batches = queryManufacturingBatches(filters);
+            Map<String, Object> payload = Map.of(
+                    "records", toManufacturingBatchMaps(batches),
+                    "industry", "MANUFACTURING"
+            );
+            return callPythonEndpoint("/api/v1/analytics/trends", payload);
+        } else {
+            List<OrderEntity> orders = queryOrders(filters);
+            List<ProductEntity> products = productRepository.findByCompanyId(companyId);
+
+            Map<String, Object> payload = Map.of(
+                    "orders", toOrderMaps(orders),
+                    "products", toProductMaps(products),
+                    "industry", "RETAIL"
+            );
+            return callPythonEndpoint("/api/v1/analytics/sales", payload);
+        }
     }
 
     public Map<String, Object> getProductIntelligence(FilterCriteriaDto filters) {
@@ -129,11 +251,35 @@ public class AnalyticsOrchestrationService {
     }
 
     public Map<String, Object> getRootCauseAnalysis(FilterCriteriaDto filters, String targetKpi) {
+        String companyId = getCompanyId(filters);
+        Company company = companyRepository.findById(companyId)
+                .orElseGet(() -> Company.builder().id(companyId).name(companyId).industry("RETAIL").build());
+        String industry = company.getIndustry() != null ? company.getIndustry().toUpperCase(Locale.ROOT) : "RETAIL";
+
+        if (industry.contains("BANK")) {
+            List<BankTransactionEntity> txns = queryBankTransactions(filters);
+            Map<String, Object> payload = Map.of(
+                    "current_records", toBankTransactionMaps(txns),
+                    "previous_records", Collections.emptyList(),
+                    "industry", "BANKING",
+                    "target_kpi", "transaction_value"
+            );
+            return callPythonEndpoint("/api/v1/analytics/root-cause", payload);
+        } else if (industry.contains("MANUF")) {
+            List<ManufacturingBatchEntity> batches = queryManufacturingBatches(filters);
+            Map<String, Object> payload = Map.of(
+                    "current_records", toManufacturingBatchMaps(batches),
+                    "previous_records", Collections.emptyList(),
+                    "industry", "MANUFACTURING",
+                    "target_kpi", "production_volume"
+            );
+            return callPythonEndpoint("/api/v1/analytics/root-cause", payload);
+        }
+
         List<OrderEntity> currentOrders = queryOrders(filters);
         List<OrderEntity> previousOrders;
 
         if (filters.getStartDate() == null && filters.getEndDate() == null && !currentOrders.isEmpty()) {
-            // Partition full history chronologically into two halves
             LocalDate minDate = currentOrders.stream().map(OrderEntity::getOrderDate).min(LocalDate::compareTo).get();
             LocalDate maxDate = currentOrders.stream().map(OrderEntity::getOrderDate).max(LocalDate::compareTo).get();
             long totalDays = ChronoUnit.DAYS.between(minDate, maxDate);
@@ -158,9 +304,33 @@ public class AnalyticsOrchestrationService {
     }
 
     public Map<String, Object> getForecast(FilterCriteriaDto filters, int days) {
-        List<OrderEntity> orders = queryOrders(filters);
-        Map<String, Object> payload = Map.of("orders", toOrderMaps(orders));
-        return callPythonEndpoint("/api/v1/analytics/forecast?days=" + days, payload);
+        String companyId = getCompanyId(filters);
+        Company company = companyRepository.findById(companyId)
+                .orElseGet(() -> Company.builder().id(companyId).name(companyId).industry("RETAIL").build());
+        String industry = company.getIndustry() != null ? company.getIndustry().toUpperCase(Locale.ROOT) : "RETAIL";
+
+        if (industry.contains("BANK")) {
+            List<BankTransactionEntity> txns = queryBankTransactions(filters);
+            Map<String, Object> payload = Map.of(
+                    "records", toBankTransactionMaps(txns),
+                    "industry", "BANKING"
+            );
+            return callPythonEndpoint("/api/v1/analytics/forecast?days=" + days, payload);
+        } else if (industry.contains("MANUF")) {
+            List<ManufacturingBatchEntity> batches = queryManufacturingBatches(filters);
+            Map<String, Object> payload = Map.of(
+                    "records", toManufacturingBatchMaps(batches),
+                    "industry", "MANUFACTURING"
+            );
+            return callPythonEndpoint("/api/v1/analytics/forecast?days=" + days, payload);
+        } else {
+            List<OrderEntity> orders = queryOrders(filters);
+            Map<String, Object> payload = Map.of(
+                    "orders", toOrderMaps(orders),
+                    "industry", "RETAIL"
+            );
+            return callPythonEndpoint("/api/v1/analytics/forecast?days=" + days, payload);
+        }
     }
 
     public Map<String, Object> getAnomalies(FilterCriteriaDto filters) {
@@ -207,17 +377,40 @@ public class AnalyticsOrchestrationService {
     }
 
     public Map<String, Object> chatWithCopilot(String companyId, String query) {
-        List<OrderEntity> orders = orderRepository.findByCompanyId(companyId);
-        List<ProductEntity> products = productRepository.findByCompanyId(companyId);
-        List<InventoryEntity> inventory = inventoryRepository.findByCompanyId(companyId);
+        Company company = companyRepository.findById(companyId)
+                .orElseGet(() -> Company.builder().id(companyId).name(companyId).industry("RETAIL").build());
+        String industry = company.getIndustry() != null ? company.getIndustry().toUpperCase(Locale.ROOT) : "RETAIL";
 
-        Map<String, Object> payload = Map.of(
-                "query", query,
-                "orders", toOrderMaps(orders),
-                "products", toProductMaps(products),
-                "inventory", toInventoryMaps(inventory)
-        );
-        return callPythonEndpoint("/api/v1/analytics/copilot", payload);
+        if (industry.contains("BANK")) {
+            List<BankTransactionEntity> txns = bankTransactionRepository.findByCompanyId(companyId);
+            Map<String, Object> payload = Map.of(
+                    "query", query,
+                    "records", toBankTransactionMaps(txns),
+                    "industry", "BANKING"
+            );
+            return callPythonEndpoint("/api/v1/analytics/copilot", payload);
+        } else if (industry.contains("MANUF")) {
+            List<ManufacturingBatchEntity> batches = manufacturingBatchRepository.findByCompanyId(companyId);
+            Map<String, Object> payload = Map.of(
+                    "query", query,
+                    "records", toManufacturingBatchMaps(batches),
+                    "industry", "MANUFACTURING"
+            );
+            return callPythonEndpoint("/api/v1/analytics/copilot", payload);
+        } else {
+            List<OrderEntity> orders = orderRepository.findByCompanyId(companyId);
+            List<ProductEntity> products = productRepository.findByCompanyId(companyId);
+            List<InventoryEntity> inventory = inventoryRepository.findByCompanyId(companyId);
+
+            Map<String, Object> payload = Map.of(
+                    "query", query,
+                    "orders", toOrderMaps(orders),
+                    "products", toProductMaps(products),
+                    "inventory", toInventoryMaps(inventory),
+                    "industry", "RETAIL"
+            );
+            return callPythonEndpoint("/api/v1/analytics/copilot", payload);
+        }
     }
 
     private List<OrderEntity> queryOrders(FilterCriteriaDto filters) {
@@ -229,6 +422,28 @@ public class AnalyticsOrchestrationService {
                 .filter(o -> filters.getEndDate() == null || !o.getOrderDate().isAfter(filters.getEndDate()))
                 .filter(o -> filters.getRegion() == null || filters.getRegion().isBlank() || filters.getRegion().equalsIgnoreCase(o.getRegion()))
                 .filter(o -> filters.getProductId() == null || filters.getProductId().isBlank() || filters.getProductId().equalsIgnoreCase(o.getProductId()))
+                .collect(Collectors.toList());
+    }
+
+    private List<BankTransactionEntity> queryBankTransactions(FilterCriteriaDto filters) {
+        String companyId = getCompanyId(filters);
+        List<BankTransactionEntity> txns = bankTransactionRepository.findByCompanyId(companyId);
+
+        return txns.stream()
+                .filter(t -> filters.getStartDate() == null || !t.getTransactionDate().isBefore(filters.getStartDate()))
+                .filter(t -> filters.getEndDate() == null || !t.getTransactionDate().isAfter(filters.getEndDate()))
+                .filter(t -> filters.getRegion() == null || filters.getRegion().isBlank() || filters.getRegion().equalsIgnoreCase(t.getChannel()))
+                .collect(Collectors.toList());
+    }
+
+    private List<ManufacturingBatchEntity> queryManufacturingBatches(FilterCriteriaDto filters) {
+        String companyId = getCompanyId(filters);
+        List<ManufacturingBatchEntity> batches = manufacturingBatchRepository.findByCompanyId(companyId);
+
+        return batches.stream()
+                .filter(b -> filters.getStartDate() == null || !b.getProductionDate().isBefore(filters.getStartDate()))
+                .filter(b -> filters.getEndDate() == null || !b.getProductionDate().isAfter(filters.getEndDate()))
+                .filter(b -> filters.getRegion() == null || filters.getRegion().isBlank() || filters.getRegion().equalsIgnoreCase(b.getWorkCenter()))
                 .collect(Collectors.toList());
     }
 
@@ -295,6 +510,50 @@ public class AnalyticsOrchestrationService {
             out.add(m);
         }
         return out;
+    }
+
+    private List<Map<String, Object>> toBankTransactionMaps(List<BankTransactionEntity> list) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (BankTransactionEntity t : list) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("transaction_id", t.getTransactionId());
+            m.put("transaction_date", t.getTransactionDate().toString());
+            m.put("account_id", t.getAccountId());
+            m.put("customer_id", t.getCustomerId());
+            m.put("transaction_type", t.getTransactionType());
+            m.put("amount", t.getAmount().doubleValue());
+            m.put("is_fraud", t.getIsFraud());
+            m.put("risk_score", t.getRiskScore() != null ? t.getRiskScore().doubleValue() : 0.0);
+            m.put("is_default", t.getIsDefault());
+            m.put("status", t.getStatus());
+            m.put("channel", t.getChannel());
+            out.add(m);
+        }
+        return out;
+    }
+
+    private List<Map<String, Object>> toManufacturingBatchMaps(List<ManufacturingBatchEntity> list) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (ManufacturingBatchEntity b : list) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("batch_id", b.getBatchId());
+            m.put("production_date", b.getProductionDate().toString());
+            m.put("work_center", b.getWorkCenter());
+            m.put("product_code", b.getProductCode());
+            m.put("planned_quantity", b.getPlannedQuantity());
+            m.put("produced_quantity", b.getProducedQuantity());
+            m.put("defective_quantity", b.getDefectiveQuantity());
+            m.put("downtime_minutes", b.getDowntimeMinutes());
+            m.put("operating_hours", b.getOperatingHours() != null ? b.getOperatingHours().doubleValue() : 8.0);
+            m.put("efficiency_pct", b.getEfficiencyPct() != null ? b.getEfficiencyPct().doubleValue() : 95.0);
+            m.put("shift", b.getShift());
+            out.add(m);
+        }
+        return out;
+    }
+
+    private List<ProductEntity> getFallbackProducts() {
+        return Collections.emptyList();
     }
 
     private List<Map<String, Object>> toProductMaps(List<ProductEntity> list) {

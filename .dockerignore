@@ -1,0 +1,11 @@
+.git
+.github
+.idea
+*.log
+.DS_Store
+.env
+data/
+venv/
+**/node_modules
+**/dist
+**/target

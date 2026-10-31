@@ -19,7 +19,11 @@ public class Company {
     @Column(nullable = false)
     private String name;
 
+    @Column(length = 100)
     private String industry;
+
+    @Column(length = 1000)
+    private String description;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

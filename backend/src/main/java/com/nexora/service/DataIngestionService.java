@@ -29,12 +29,15 @@ import java.util.*;
 @RequiredArgsConstructor
 public class DataIngestionService {
 
+    private final CompanyRepository companyRepository;
     private final DatasetRepository datasetRepository;
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
     private final CustomerRepository customerRepository;
     private final InventoryRepository inventoryRepository;
     private final MarketingRepository marketingRepository;
+    private final BankTransactionRepository bankTransactionRepository;
+    private final ManufacturingBatchRepository manufacturingBatchRepository;
     private final RestTemplate restTemplate;
 
     @Value("${analytics.service.url:http://localhost:8000}")
@@ -52,6 +55,16 @@ public class DataIngestionService {
         }
 
         log.info("Processing ingestion for company: {}, file: {}", companyId, filename);
+
+        // Fetch company profile to determine industry
+        Company company = companyRepository.findById(companyId)
+                .orElseGet(() -> companyRepository.save(Company.builder()
+                        .id(companyId)
+                        .name(companyId.substring(0, 1).toUpperCase() + companyId.substring(1))
+                        .industry("RETAIL")
+                        .build()));
+
+        String industry = company.getIndustry() != null ? company.getIndustry().toUpperCase(Locale.ROOT) : "RETAIL";
 
         List<Map<String, Object>> records = new ArrayList<>();
         try {
@@ -75,7 +88,14 @@ public class DataIngestionService {
         BigDecimal qualityScore = new BigDecimal("92.50");
 
         try {
-            Map<String, Object> req = Map.of("records", records.subList(0, Math.min(records.size(), 1000)), "table_type", "orders");
+            String tableType = "orders";
+            if (industry.contains("BANK")) tableType = "banking";
+            else if (industry.contains("MANUF")) tableType = "manufacturing";
+
+            Map<String, Object> req = Map.of(
+                    "records", records.subList(0, Math.min(records.size(), 1000)),
+                    "table_type", tableType
+            );
             ResponseEntity<Map> resp = restTemplate.postForEntity(analyticsServiceUrl + "/api/v1/analytics/profile", req, Map.class);
             if (resp.getStatusCode().is2xxSuccessful() && resp.getBody() != null) {
                 Map body = resp.getBody();
@@ -99,11 +119,6 @@ public class DataIngestionService {
             nextVersion = latestDataset.get().getVersion() + 1;
         }
 
-        if (replaceExisting) {
-            log.info("Replacing existing orders for company {}", companyId);
-            orderRepository.deleteByCompanyId(companyId);
-        }
-
         String datasetId = "DS-" + UUID.randomUUID().toString().substring(0, 8);
         Dataset dataset = Dataset.builder()
                 .id(datasetId)
@@ -116,7 +131,42 @@ public class DataIngestionService {
                 .build();
         datasetRepository.save(dataset);
 
-        // Convert and persist orders
+        int rowsProcessed = 0;
+        if (industry.contains("BANK")) {
+            if (replaceExisting) {
+                log.info("Replacing existing bank transactions for company {}", companyId);
+                bankTransactionRepository.deleteByCompanyId(companyId);
+            }
+            rowsProcessed = persistBankTransactions(companyId, datasetId, records, columnMapping);
+        } else if (industry.contains("MANUF")) {
+            if (replaceExisting) {
+                log.info("Replacing existing manufacturing batches for company {}", companyId);
+                manufacturingBatchRepository.deleteByCompanyId(companyId);
+            }
+            rowsProcessed = persistManufacturingBatches(companyId, datasetId, records, columnMapping);
+        } else {
+            if (replaceExisting) {
+                log.info("Replacing existing orders for company {}", companyId);
+                orderRepository.deleteByCompanyId(companyId);
+            }
+            rowsProcessed = persistOrders(companyId, datasetId, records, columnMapping);
+        }
+
+        log.info("Persisted {} records for company {} in dataset {}", rowsProcessed, companyId, datasetId);
+
+        return UploadResponseDto.builder()
+                .datasetId(datasetId)
+                .filename(filename)
+                .rowsProcessed(rowsProcessed)
+                .qualityScore(qualityScore)
+                .validationStatus("VALIDATED")
+                .version(nextVersion)
+                .qualityReport(qualityReport)
+                .columnMapping(columnMapping)
+                .build();
+    }
+
+    private int persistOrders(String companyId, String datasetId, List<Map<String, Object>> records, Map<String, String> columnMapping) {
         List<OrderEntity> orderEntities = new ArrayList<>();
         DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -168,20 +218,112 @@ public class DataIngestionService {
                 log.warn("Skipping corrupt record {}: {}", i, ex.getMessage());
             }
         }
-
         orderRepository.saveAll(orderEntities);
-        log.info("Persisted {} orders for dataset {}", orderEntities.size(), datasetId);
+        return orderEntities.size();
+    }
 
-        return UploadResponseDto.builder()
-                .datasetId(datasetId)
-                .filename(filename)
-                .rowsProcessed(orderEntities.size())
-                .qualityScore(qualityScore)
-                .validationStatus("VALIDATED")
-                .version(nextVersion)
-                .qualityReport(qualityReport)
-                .columnMapping(columnMapping)
-                .build();
+    private int persistBankTransactions(String companyId, String datasetId, List<Map<String, Object>> records, Map<String, String> columnMapping) {
+        List<BankTransactionEntity> entities = new ArrayList<>();
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        for (int i = 0; i < records.size(); i++) {
+            Map<String, Object> row = records.get(i);
+            try {
+                String txnId = getVal(row, columnMapping, "transaction_id", "TXN-" + (10000 + i));
+                String dateStr = getVal(row, columnMapping, "transaction_date", LocalDate.now().toString());
+                LocalDate txnDate = LocalDate.now();
+                try {
+                    txnDate = LocalDate.parse(dateStr.substring(0, Math.min(10, dateStr.length())), dtf);
+                } catch (Exception ignored) {}
+
+                String acctId = getVal(row, columnMapping, "account_id", "ACC-" + (1000 + (i % 200)));
+                String custId = getVal(row, columnMapping, "customer_id", "CUST-" + (100 + (i % 50)));
+                String txnType = getVal(row, columnMapping, "transaction_type", "Wire Transfer");
+                BigDecimal amount = parseDecimal(getVal(row, columnMapping, "amount", "100.0"), new BigDecimal("100.0"));
+                boolean isFraud = parseBool(getVal(row, columnMapping, "is_fraud", "false"));
+                BigDecimal riskScore = parseDecimal(getVal(row, columnMapping, "risk_score", "0.05"), new BigDecimal("0.05"));
+                boolean isDefault = parseBool(getVal(row, columnMapping, "is_default", "false"));
+                String status = getVal(row, columnMapping, "status", isFraud ? "Flagged" : (isDefault ? "Defaulted" : "Settled"));
+                String channel = getVal(row, columnMapping, "channel", "Online");
+
+                entities.add(BankTransactionEntity.builder()
+                        .companyId(companyId)
+                        .datasetId(datasetId)
+                        .transactionId(txnId)
+                        .transactionDate(txnDate)
+                        .accountId(acctId)
+                        .customerId(custId)
+                        .transactionType(txnType)
+                        .amount(amount)
+                        .isFraud(isFraud)
+                        .riskScore(riskScore)
+                        .isDefault(isDefault)
+                        .status(status)
+                        .channel(channel)
+                        .build());
+            } catch (Exception ex) {
+                log.warn("Skipping corrupt bank record {}: {}", i, ex.getMessage());
+            }
+        }
+        bankTransactionRepository.saveAll(entities);
+        return entities.size();
+    }
+
+    private int persistManufacturingBatches(String companyId, String datasetId, List<Map<String, Object>> records, Map<String, String> columnMapping) {
+        List<ManufacturingBatchEntity> entities = new ArrayList<>();
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        for (int i = 0; i < records.size(); i++) {
+            Map<String, Object> row = records.get(i);
+            try {
+                String batchId = getVal(row, columnMapping, "batch_id", "BATCH-" + (1000 + i));
+                String dateStr = getVal(row, columnMapping, "production_date", LocalDate.now().toString());
+                LocalDate prodDate = LocalDate.now();
+                try {
+                    prodDate = LocalDate.parse(dateStr.substring(0, Math.min(10, dateStr.length())), dtf);
+                } catch (Exception ignored) {}
+
+                String workCenter = getVal(row, columnMapping, "work_center", "Assembly Line 1");
+                String productCode = getVal(row, columnMapping, "product_code", "PART-001");
+                int planned = parseInt(getVal(row, columnMapping, "planned_quantity", "1000"), 1000);
+                int produced = parseInt(getVal(row, columnMapping, "produced_quantity", "980"), 980);
+                int defects = parseInt(getVal(row, columnMapping, "defective_quantity", "20"), 20);
+                int downtime = parseInt(getVal(row, columnMapping, "downtime_minutes", "15"), 15);
+                BigDecimal opHours = parseDecimal(getVal(row, columnMapping, "operating_hours", "8.0"), BigDecimal.valueOf(8.0));
+                
+                BigDecimal eff = parseDecimal(getVal(row, columnMapping, "efficiency_pct", ""), null);
+                if (eff == null) {
+                    eff = planned > 0 ? BigDecimal.valueOf((double) produced / planned * 100.0).setScale(2, RoundingMode.HALF_UP) : BigDecimal.valueOf(95.0);
+                }
+                String shift = getVal(row, columnMapping, "shift", "Morning");
+
+                entities.add(ManufacturingBatchEntity.builder()
+                        .companyId(companyId)
+                        .datasetId(datasetId)
+                        .batchId(batchId)
+                        .productionDate(prodDate)
+                        .workCenter(workCenter)
+                        .productCode(productCode)
+                        .plannedQuantity(planned)
+                        .producedQuantity(produced)
+                        .defectiveQuantity(defects)
+                        .downtimeMinutes(downtime)
+                        .operatingHours(opHours)
+                        .efficiencyPct(eff)
+                        .shift(shift)
+                        .build());
+            } catch (Exception ex) {
+                log.warn("Skipping corrupt manufacturing record {}: {}", i, ex.getMessage());
+            }
+        }
+        manufacturingBatchRepository.saveAll(entities);
+        return entities.size();
+    }
+
+    private boolean parseBool(String s) {
+        if (s == null) return false;
+        String trimmed = s.trim().toLowerCase();
+        return trimmed.equals("true") || trimmed.equals("1") || trimmed.equals("yes") || trimmed.equals("t");
     }
 
     private List<Map<String, Object>> parseCsv(InputStream is) throws IOException {
@@ -198,8 +340,7 @@ public class DataIngestionService {
     private List<Map<String, Object>> parseExcel(InputStream is) throws Exception {
         List<Map<String, Object>> rows = new ArrayList<>();
         Workbook workbook = WorkbookFactory.create(is);
-        Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheetAt(0) : null;
-        if (sheet == null) return rows;
+        Sheet sheet = workbook.getSheetAt(0);
 
         Row headerRow = sheet.getRow(0);
         if (headerRow == null) return rows;
@@ -212,74 +353,77 @@ public class DataIngestionService {
         for (int r = 1; r <= sheet.getLastRowNum(); r++) {
             Row row = sheet.getRow(r);
             if (row == null) continue;
+
             Map<String, Object> map = new HashMap<>();
+            boolean hasData = false;
             for (int c = 0; c < headers.size(); c++) {
                 Cell cell = row.getCell(c);
+                String val = "";
                 if (cell != null) {
-                    map.put(headers.get(c), getCellValue(cell));
+                    if (cell.getCellType() == CellType.STRING) {
+                        val = cell.getStringCellValue();
+                    } else if (cell.getCellType() == CellType.NUMERIC) {
+                        if (DateUtil.isCellDateFormatted(cell)) {
+                            val = cell.getLocalDateTimeCellValue().toLocalDate().toString();
+                        } else {
+                            val = String.valueOf(cell.getNumericCellValue());
+                        }
+                    } else if (cell.getCellType() == CellType.BOOLEAN) {
+                        val = String.valueOf(cell.getBooleanCellValue());
+                    } else {
+                        val = cell.toString();
+                    }
                 }
+                if (!val.trim().isEmpty()) hasData = true;
+                map.put(headers.get(c), val);
             }
-            if (!map.isEmpty()) {
-                rows.add(map);
-            }
+            if (hasData) rows.add(map);
         }
-        workbook.close();
         return rows;
     }
 
-    private Object getCellValue(Cell cell) {
-        if (cell.getCellType() == CellType.STRING) {
-            return cell.getStringCellValue();
-        } else if (cell.getCellType() == CellType.NUMERIC) {
-            if (DateUtil.isCellDateFormatted(cell)) {
-                return cell.getLocalDateTimeCellValue().toLocalDate().toString();
-            }
-            return cell.getNumericCellValue();
-        } else if (cell.getCellType() == CellType.BOOLEAN) {
-            return cell.getBooleanCellValue();
-        }
-        return "";
-    }
-
-    private String getVal(Map<String, Object> row, Map<String, String> mapping, String canonicalKey, String defaultVal) {
-        // Direct canonical check
-        if (row.containsKey(canonicalKey) && row.get(canonicalKey) != null && !row.get(canonicalKey).toString().isBlank()) {
-            return row.get(canonicalKey).toString().trim();
-        }
-        // Mapping check
+    private String getVal(Map<String, Object> row, Map<String, String> mapping, String targetCanonical, String fallback) {
         for (Map.Entry<String, String> entry : mapping.entrySet()) {
-            if (entry.getValue().equalsIgnoreCase(canonicalKey) && row.containsKey(entry.getKey())) {
-                Object v = row.get(entry.getKey());
-                if (v != null && !v.toString().isBlank()) {
-                    return v.toString().trim();
+            if (entry.getValue().equalsIgnoreCase(targetCanonical)) {
+                Object val = row.get(entry.getKey());
+                if (val != null && !val.toString().trim().isEmpty()) {
+                    return val.toString().trim();
                 }
             }
         }
-        // Case-insensitive lookup
         for (Map.Entry<String, Object> entry : row.entrySet()) {
-            String norm = entry.getKey().replaceAll("[_\\s\\-\\.]+", "").toLowerCase();
-            String normKey = canonicalKey.replaceAll("[_\\s\\-\\.]+", "").toLowerCase();
-            if (norm.equals(normKey) && entry.getValue() != null && !entry.getValue().toString().isBlank()) {
-                return entry.getValue().toString().trim();
+            String colNormalized = entry.getKey().trim().toLowerCase().replaceAll("[_\\s-]+", "");
+            String targetNormalized = targetCanonical.replaceAll("[_\\s-]+", "");
+            if (colNormalized.equals(targetNormalized) || colNormalized.contains(targetNormalized)) {
+                Object val = entry.getValue();
+                if (val != null && !val.toString().trim().isEmpty()) {
+                    return val.toString().trim();
+                }
             }
         }
-        return defaultVal;
+        return fallback;
     }
 
-    private int parseInt(String str, int defaultVal) {
+    private BigDecimal parseDecimal(String s, BigDecimal fallback) {
+        if (s == null || s.trim().isEmpty()) return fallback;
         try {
-            return (int) Double.parseDouble(str.replaceAll("[^0-9.-]", ""));
+            String cleaned = s.replace("$", "").replace(",", "").replace("%", "").trim();
+            return new BigDecimal(cleaned);
         } catch (Exception e) {
-            return defaultVal;
+            return fallback;
         }
     }
 
-    private BigDecimal parseDecimal(String str, BigDecimal defaultVal) {
-        if (str == null || str.isBlank()) return defaultVal;
+    private int parseInt(String s, int fallback) {
+        if (s == null || s.trim().isEmpty()) return fallback;
         try {
-            return new BigDecimal(str.replaceAll("[^0-9.-]", ""));
+            String cleaned = s.replace(",", "").trim();
+            if (cleaned.contains(".")) {
+                return (int) Double.parseDouble(cleaned);
+            }
+            return Integer.parseInt(cleaned);
         } catch (Exception e) {
-            return defaultVal;
+            return fallback;
         }
     }
 }
