@@ -5,9 +5,9 @@ import numpy as np
 
 CANONICAL_SYNONYMS = {
     "order_id": ["order_id", "order id", "orderid", "id", "order_number", "order number", "order no", "transaction_id", "transaction id"],
-    "order_date": ["order_date", "order date", "date", "orderdate", "transaction_date", "transaction date", "purchase_date", "purchase date"],
-    "customer_id": ["customer_id", "customer id", "customerid", "cust_id", "cust id", "client_id", "client id", "user_id"],
-    "product_id": ["product_id", "product id", "productid", "item_id", "item id", "sku"],
+    "order_date": ["order_date", "order date", "date", "orderdate", "transaction_date", "transaction date", "purchase_date", "purchase date", "tx date", "tx_date"],
+    "customer_id": ["customer_id", "customer id", "customerid", "cust_id", "cust id", "client_id", "client id", "user_id", "customer ref", "customer_ref"],
+    "product_id": ["product_id", "product id", "productid", "item_id", "item id", "sku", "item code", "item_code"],
     "product_name": ["product_name", "product name", "item_name", "item name", "name", "title"],
     "category": ["category", "cat", "product_category", "product category", "department"],
     "sub_category": ["sub_category", "sub category", "subcategory", "sub-category"],
@@ -15,9 +15,9 @@ CANONICAL_SYNONYMS = {
     "quantity": ["quantity", "qty", "units", "count", "item count", "item_count", "items"],
     "unit_price": ["unit_price", "unit price", "price", "selling_price", "selling price", "unitprice", "rate"],
     "unit_cost": ["unit_cost", "unit cost", "cost", "cogs"],
-    "discount": ["discount", "disc", "discount_rate", "discount rate", "rebate"],
+    "discount": ["discount", "disc", "discount_rate", "discount rate", "rebate", "discount pct", "discount_pct"],
     "sales": ["sales", "revenue", "total_sales", "total sales", "amount", "total_amount", "total amount", "gross_sales"],
-    "profit": ["profit", "net_profit", "net profit", "margin_amount", "margin amount", "income"],
+    "profit": ["profit", "net_profit", "net profit", "margin", "margin_amount", "margin amount", "income"],
     "order_status": ["order_status", "order status", "status", "delivery_status", "delivery status", "state"]
 }
 

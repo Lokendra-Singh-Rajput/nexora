@@ -228,16 +228,17 @@ public class DataIngestionService {
     }
 
     private Object getCellValue(Cell cell) {
-        switch (cell.getCellType()) {
-            case STRING: return cell.getStringCellValue();
-            case NUMERIC:
-                if (DateUtil.isCellDateFormatted(cell)) {
-                    return cell.getLocalDateTimeCellValue().toLocalDate().toString();
-                }
-                return cell.getNumericCellValue();
-            case BOOLEAN: return cell.getBooleanCellValue();
-            default: return "";
+        if (cell.getCellType() == CellType.STRING) {
+            return cell.getStringCellValue();
+        } else if (cell.getCellType() == CellType.NUMERIC) {
+            if (DateUtil.isCellDateFormatted(cell)) {
+                return cell.getLocalDateTimeCellValue().toLocalDate().toString();
+            }
+            return cell.getNumericCellValue();
+        } else if (cell.getCellType() == CellType.BOOLEAN) {
+            return cell.getBooleanCellValue();
         }
+        return "";
     }
 
     private String getVal(Map<String, Object> row, Map<String, String> mapping, String canonicalKey, String defaultVal) {

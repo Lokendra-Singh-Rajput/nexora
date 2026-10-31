@@ -1,0 +1,6 @@
+Order Number,Tx Date,Customer Ref,Item Code,Territory,Item Count,Rate,Discount Pct,Amount,Margin,State
+ORD-AUDIT-1,2025-05-01,CUST-001,PROD-101,North,3,$45.00,0.10,121.50,35.00,Completed
+ORD-AUDIT-1,2025-05-01,CUST-001,PROD-101,North,3,$45.00,0.10,121.50,35.00,Completed
+ORD-AUDIT-2,2025-05-02,CUST-002,PROD-102,West,-4,$99.00,0.00,-396.00,-100.00,Completed
+ORD-AUDIT-3,2025-05-03,CUST-003,PROD-103,South,2,$150.00,0.00,,,Completed
+ORD-AUDIT-4,invalid-date,CUST-004,PROD-104,East,1,$200.00,0.00,200.00,60.00,Completed

@@ -34,44 +34,57 @@ def generate_quality_report(df: pd.DataFrame, table_type: str = "orders") -> Dic
     warnings: List[str] = []
     anomalies: List[Dict[str, Any]] = []
 
+    # Map column headers to canonical names to inspect domain constraints
+    from app.cleaning.sanitizer import auto_detect_column_mapping
+    detected_map = auto_detect_column_mapping(list(df.columns))
+    df_eval = df.rename(columns=detected_map)
+
     # Specific business domain checks
-    if "quantity" in df.columns:
-        neg_qty = df[df["quantity"] < 0]
+    if "quantity" in df_eval.columns:
+        qty_numeric = pd.to_numeric(df_eval["quantity"].astype(str).str.replace(r"[^\d.-]", "", regex=True), errors="coerce")
+        neg_qty = df_eval[qty_numeric < 0]
         if not neg_qty.empty:
             for idx in neg_qty.index:
                 invalid_rows_set.add(idx)
+            orig_col = [k for k, v in detected_map.items() if v == "quantity"]
+            col_name = orig_col[0] if orig_col else "quantity"
             warnings.append(f"Found {len(neg_qty)} rows with negative quantity.")
             anomalies.append({
                 "type": "negative_value",
-                "column": "quantity",
+                "column": col_name,
                 "count": len(neg_qty),
                 "severity": "HIGH",
                 "message": "Quantities must be positive integers."
             })
 
-    if "sales" in df.columns:
-        neg_sales = df[df["sales"] < 0]
+    if "sales" in df_eval.columns:
+        sales_numeric = pd.to_numeric(df_eval["sales"].astype(str).str.replace(r"[^\d.-]", "", regex=True), errors="coerce")
+        neg_sales = df_eval[sales_numeric < 0]
         if not neg_sales.empty:
             for idx in neg_sales.index:
                 invalid_rows_set.add(idx)
+            orig_col = [k for k, v in detected_map.items() if v == "sales"]
+            col_name = orig_col[0] if orig_col else "sales"
             warnings.append(f"Found {len(neg_sales)} rows with negative sales.")
             anomalies.append({
                 "type": "negative_value",
-                "column": "sales",
+                "column": col_name,
                 "count": len(neg_sales),
                 "severity": "HIGH",
                 "message": "Sales values should not be negative."
             })
 
-    if "order_date" in df.columns:
+    if "order_date" in df_eval.columns:
         # Check invalid dates
-        parsed_dates = pd.to_datetime(df["order_date"], errors="coerce")
-        invalid_dates = parsed_dates.isnull().sum() - df["order_date"].isnull().sum()
+        parsed_dates = pd.to_datetime(df_eval["order_date"], errors="coerce")
+        invalid_dates = parsed_dates.isnull().sum() - df_eval["order_date"].isnull().sum()
         if invalid_dates > 0:
+            orig_col = [k for k, v in detected_map.items() if v == "order_date"]
+            col_name = orig_col[0] if orig_col else "order_date"
             warnings.append(f"Found {invalid_dates} unparseable order dates.")
             anomalies.append({
                 "type": "invalid_date_format",
-                "column": "order_date",
+                "column": col_name,
                 "count": int(invalid_dates),
                 "severity": "HIGH",
                 "message": "Dates could not be parsed into ISO YYYY-MM-DD standard."
