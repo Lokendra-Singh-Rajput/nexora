@@ -15,21 +15,31 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Execute Deployment via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
+      - name: Deploy via Native SSH
+        env:
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          HOST: ${{ secrets.EC2_HOST }}
+          USER: ${{ secrets.EC2_USER }}
+        run: |
+          echo "Setting up SSH environment..."
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" | tr -d '\r' > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
+
+          # Clean host string (strip whitespace/http)
+          CLEAN_HOST=$(echo "$HOST" | sed 's|https://||g' | sed 's|http://||g' | tr -d ' /')
+          echo "Connecting to $USER@$CLEAN_HOST..."
+
+          ssh -i ~/.ssh/ec2_key -o StrictHostKeyChecking=no -o ConnectTimeout=15 "$USER@$CLEAN_HOST" << 'EOF'
             set -e
             echo "=========================================="
-            echo " Starting Automated Deployment on EC2"
+            echo " Running Deployment on AWS EC2 Server"
             echo "=========================================="
             cd ~/nexora
             git pull origin main
             sudo ./deploy/deploy.sh
-            echo "Deployment finished successfully!"
+            echo "Deployment successfully finished!"
+          EOF
 
       - name: Verify Live Platform Health
         run: |
@@ -39,6 +49,6 @@ jobs:
           if [ "$STATUS" = "200" ] || [ "$STATUS" = "301" ]; then
             echo "Deployment verified! Platform is healthy (HTTP $STATUS)."
           else
-            echo "Endpoint check warning (HTTP $STATUS), checking homepage..."
+            echo "Checking homepage..."
             curl -f -s -I https://nexora-analyst.duckdns.org/ || exit 1
           fi
