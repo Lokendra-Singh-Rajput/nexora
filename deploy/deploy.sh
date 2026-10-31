@@ -11,7 +11,7 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT_DIR"
 
 echo "=========================================================="
-echo " Deploying NEXORA Enterprise Stack on AWS EC2"
+echo " Deploying NEXORA Enterprise Stack on AWS EC2 (v1.0.1)"
 echo "=========================================================="
 
 # 1. Environment file check
