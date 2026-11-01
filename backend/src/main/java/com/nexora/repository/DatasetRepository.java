@@ -12,4 +12,5 @@ public interface DatasetRepository extends JpaRepository<Dataset, String> {
     List<Dataset> findByCompanyIdOrderByCreatedAtDesc(String companyId);
     Optional<Dataset> findTopByCompanyIdOrderByVersionDesc(String companyId);
     long countByCompanyId(String companyId);
+    void deleteByCompanyId(String companyId);
 }

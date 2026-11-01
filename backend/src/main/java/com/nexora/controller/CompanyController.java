@@ -38,4 +38,12 @@ public class CompanyController {
     public ApiResponse<CompanyDto> getCompany(@PathVariable String id) {
         return ApiResponse.success(companyService.getCompanyDtoById(id));
     }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.OK)
+    @Operation(summary = "Delete an organization and all its data (cascades orders/transactions/datasets)")
+    public ApiResponse<String> deleteCompany(@PathVariable String id) {
+        companyService.deleteCompany(id);
+        return ApiResponse.success("Organization '" + id + "' and all associated data deleted successfully.", "DELETED");
+    }
 }

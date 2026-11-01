@@ -84,6 +84,15 @@ export const App: React.FC = () => {
     setRefreshTrigger((prev) => prev + 1);
   };
 
+  const handleCompanyDeleted = (deletedId: string) => {
+    setCompanies((prev) => prev.filter((c) => c.id !== deletedId));
+    // If the deleted org was active, switch back to novamart
+    if (filters.companyId === deletedId) {
+      setFilters({ companyId: 'novamart' });
+    }
+    setRefreshTrigger((prev) => prev + 1);
+  };
+
   return (
     <BrowserRouter>
       <div className="flex min-h-screen bg-slate-50 font-sans antialiased text-slate-900">
@@ -104,6 +113,7 @@ export const App: React.FC = () => {
             activeCompany={activeCompany}
             onSelectCompany={handleSelectCompany}
             onOpenCreateCompany={() => setIsCreateCompanyOpen(true)}
+            onCompanyDeleted={handleCompanyDeleted}
           />
 
           <main className="flex-1 overflow-y-auto">

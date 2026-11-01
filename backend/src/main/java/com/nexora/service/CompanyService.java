@@ -89,6 +89,34 @@ public class CompanyService {
         return createOrGetCompany(id, name, industry, "");
     }
 
+    /**
+     * Deletes an organization and all its associated data (orders, transactions,
+     * manufacturing batches, datasets). The built-in "novamart" demo org is protected.
+     */
+    @Transactional
+    public void deleteCompany(String id) {
+        if ("novamart".equalsIgnoreCase(id)) {
+            throw new DataValidationException("The 'novamart' demo organization cannot be deleted.");
+        }
+        Company company = getCompanyById(id);
+        String industry = company.getIndustry() != null ? company.getIndustry().toUpperCase(Locale.ROOT) : "RETAIL";
+
+        log.info("Deleting organization '{}' ({}) and all associated data", company.getName(), id);
+
+        // Cascade-delete all tenant data first (no FK cascade in schema)
+        if (industry.contains("BANK")) {
+            bankTransactionRepository.deleteByCompanyId(id);
+        } else if (industry.contains("MANUF")) {
+            manufacturingBatchRepository.deleteByCompanyId(id);
+        } else {
+            orderRepository.deleteByCompanyId(id);
+        }
+        datasetRepository.deleteByCompanyId(id);
+        companyRepository.deleteById(id);
+
+        log.info("Organization '{}' deleted successfully", id);
+    }
+
     private CompanyDto toDto(Company company) {
         long recordCount = 0;
         String ind = company.getIndustry() != null ? company.getIndustry().toUpperCase(Locale.ROOT) : "RETAIL";

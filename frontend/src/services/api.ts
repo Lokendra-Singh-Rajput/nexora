@@ -131,5 +131,9 @@ export const apiService = {
   async createCompany(data: { name: string; industry: string; id?: string; description?: string }): Promise<any> {
     const resp = await client.post('/companies', data);
     return resp.data.data;
-  }
+  },
+
+  async deleteCompany(id: string): Promise<void> {
+    await client.delete(`/companies/${id}`);
+  },
 };

@@ -9,8 +9,12 @@ import {
   Building2,
   ChevronDown,
   PlusCircle,
-  Briefcase
+  Briefcase,
+  Trash2,
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
+import { apiService } from '../../services/api';
 
 interface TopbarProps {
   filters: FilterState;
@@ -24,6 +28,7 @@ interface TopbarProps {
   activeCompany?: Company;
   onSelectCompany: (companyId: string) => void;
   onOpenCreateCompany: () => void;
+  onCompanyDeleted: (companyId: string) => void;
 }
 
 export const Topbar: React.FC<TopbarProps> = ({
@@ -37,9 +42,13 @@ export const Topbar: React.FC<TopbarProps> = ({
   companies,
   activeCompany,
   onSelectCompany,
-  onOpenCreateCompany
+  onOpenCreateCompany,
+  onCompanyDeleted
 }) => {
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Company | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const regions = ['All Regions', 'North', 'South', 'East', 'West', 'Central'];
 
   const getIndustryBadge = (industry?: string) => {
@@ -79,7 +88,71 @@ export const Topbar: React.FC<TopbarProps> = ({
     }
   };
 
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    setDeleteError(null);
+    try {
+      await apiService.deleteCompany(deleteTarget.id);
+      onCompanyDeleted(deleteTarget.id);
+      setDeleteTarget(null);
+    } catch (err: any) {
+      setDeleteError(err?.response?.data?.message || err?.message || 'Failed to delete organization.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   return (
+    <>
+    {/* Delete Confirmation Modal */}
+    {deleteTarget && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+        <div className="bg-white rounded-xl shadow-2xl max-w-md w-full border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="px-6 py-4 bg-rose-600 text-white flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 shrink-0" />
+            <div>
+              <h3 className="text-sm font-semibold">Delete Organization</h3>
+              <p className="text-xs text-rose-200 mt-0.5">This action is permanent and cannot be undone.</p>
+            </div>
+          </div>
+          <div className="p-6">
+            <p className="text-sm text-slate-700 mb-1">
+              You are about to permanently delete:
+            </p>
+            <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 mb-4">
+              <p className="text-sm font-semibold text-slate-900">{deleteTarget.name}</p>
+              <p className="text-xs text-slate-500 font-mono mt-0.5">{deleteTarget.id}</p>
+              <p className="text-xs text-rose-600 mt-1.5">
+                ⚠ All datasets, records, and analytics data will be permanently erased.
+              </p>
+            </div>
+            {deleteError && (
+              <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs">
+                {deleteError}
+              </div>
+            )}
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => { setDeleteTarget(null); setDeleteError(null); }}
+                disabled={deleteLoading}
+                className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-800 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={deleteLoading}
+                className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm flex items-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                {deleteLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                Delete Organization
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
     <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-20">
       {/* Left: Organization Selector & Filter Controls */}
       <div className="flex items-center gap-3">
@@ -105,25 +178,44 @@ export const Topbar: React.FC<TopbarProps> = ({
                 <div className="max-h-60 overflow-y-auto py-1">
                   {companies.map((comp) => {
                     const isSelected = comp.id === filters.companyId;
+                    const isDemo = comp.id === 'novamart';
                     return (
-                      <button
+                      <div
                         key={comp.id}
-                        onClick={() => {
-                          onSelectCompany(comp.id);
-                          setIsCompanyDropdownOpen(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer ${
-                          isSelected ? 'bg-indigo-50/60 font-semibold text-indigo-900' : 'text-slate-700'
-                        }`}
+                        className={`flex items-center px-1 group ${isSelected ? 'bg-indigo-50/60' : ''}`}
                       >
-                        <div className="min-w-0 pr-2">
-                          <div className="text-xs truncate">{comp.name}</div>
-                          <div className="text-[10px] text-slate-400 truncate">
-                            {comp.recordCount ? `${comp.recordCount.toLocaleString()} records` : 'No records loaded'}
+                        <button
+                          onClick={() => {
+                            onSelectCompany(comp.id);
+                            setIsCompanyDropdownOpen(false);
+                          }}
+                          className={`flex-1 text-left px-2 py-2 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer rounded-lg ${
+                            isSelected ? 'font-semibold text-indigo-900' : 'text-slate-700'
+                          }`}
+                        >
+                          <div className="min-w-0 pr-2">
+                            <div className="text-xs truncate">{comp.name}</div>
+                            <div className="text-[10px] text-slate-400 truncate">
+                              {comp.recordCount ? `${comp.recordCount.toLocaleString()} records` : 'No records loaded'}
+                            </div>
                           </div>
-                        </div>
-                        {getIndustryBadge(comp.industry)}
-                      </button>
+                          {getIndustryBadge(comp.industry)}
+                        </button>
+                        {!isDemo && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteError(null);
+                              setDeleteTarget(comp);
+                              setIsCompanyDropdownOpen(false);
+                            }}
+                            title={`Delete ${comp.name}`}
+                            className="ml-1 p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-md transition-colors opacity-0 group-hover:opacity-100 cursor-pointer shrink-0"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -246,5 +338,6 @@ export const Topbar: React.FC<TopbarProps> = ({
         </button>
       </div>
     </header>
+  </>
   );
 };
