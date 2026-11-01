@@ -134,7 +134,7 @@ export const DataManagementPage: React.FC<DataManagementPageProps> = ({
             Data Management & Ingestion Pipeline
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Upload CSV or Excel spreadsheets with automatic canonical schema mapping, quality profiling, and tenant isolation.
+            Upload CSV, Excel spreadsheets, or ZIP archives with automatic canonical schema mapping, quality profiling, and tenant isolation.
           </p>
         </div>
 
@@ -205,7 +205,7 @@ export const DataManagementPage: React.FC<DataManagementPageProps> = ({
           <input
             type="file"
             id="fileInput"
-            accept=".csv, .xlsx, .xls"
+            accept=".csv, .xlsx, .xls, .zip"
             onChange={handleFileChange}
             className="hidden"
           />
@@ -214,7 +214,7 @@ export const DataManagementPage: React.FC<DataManagementPageProps> = ({
               <Upload className="w-6 h-6" />
             </div>
             <div className="text-sm font-semibold text-slate-800">
-              {selectedFile ? selectedFile.name : 'Click to select CSV or XLSX file'}
+              {selectedFile ? selectedFile.name : 'Click to select CSV, XLSX, or ZIP file'}
             </div>
             <p className="text-xs text-slate-400">
               Files will be automatically scoped and isolated to {activeCompany?.name || companyId} (up to 50MB)
