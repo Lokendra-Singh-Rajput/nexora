@@ -31,7 +31,7 @@ export const DataManagementPage: React.FC<DataManagementPageProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [replaceExisting, setReplaceExisting] = useState<boolean>(false);
   const [uploading, setUploading] = useState<boolean>(false);
   const [uploadResult, setUploadResult] = useState<any>(null);
@@ -60,24 +60,28 @@ export const DataManagementPage: React.FC<DataManagementPageProps> = ({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setSelectedFile(e.target.files[0]);
+      setSelectedFiles(Array.from(e.target.files));
     }
   };
 
   const handleUpload = async () => {
-    if (!selectedFile) return;
+    if (selectedFiles.length === 0) return;
     setUploading(true);
     setError(null);
     setUploadResult(null);
 
     const formData = new FormData();
-    formData.append('file', selectedFile);
+    selectedFiles.forEach((f) => {
+      formData.append('files', f);
+    });
+    // also append primary file for single-file API compatibility
+    formData.append('file', selectedFiles[0]);
 
     try {
       const resp = await apiService.uploadDataset(formData, companyId, replaceExisting);
       setUploadResult(resp);
-      setToastMessage(`Dataset "${resp.filename}" processed and validated successfully for ${activeCompany?.name || companyId}!`);
-      setSelectedFile(null);
+      setToastMessage(`Dataset "${resp.filename}" processed and validated successfully (${resp.rowsProcessed.toLocaleString()} records) for ${activeCompany?.name || companyId}!`);
+      setSelectedFiles([]);
       await fetchDatasets();
       if (onDataRefreshed) onDataRefreshed();
     } catch (err: any) {
@@ -205,6 +209,7 @@ export const DataManagementPage: React.FC<DataManagementPageProps> = ({
           <input
             type="file"
             id="fileInput"
+            multiple
             accept=".csv, .xlsx, .xls, .zip"
             onChange={handleFileChange}
             className="hidden"
@@ -214,46 +219,69 @@ export const DataManagementPage: React.FC<DataManagementPageProps> = ({
               <Upload className="w-6 h-6" />
             </div>
             <div className="text-sm font-semibold text-slate-800">
-              {selectedFile ? selectedFile.name : 'Click to select CSV, XLSX, or ZIP file'}
+              {selectedFiles.length === 0 && 'Click to select CSV, XLSX, or ZIP file(s) — multiple selection supported'}
+              {selectedFiles.length === 1 && `${selectedFiles[0].name} (${(selectedFiles[0].size / 1024 / 1024).toFixed(2)} MB)`}
+              {selectedFiles.length > 1 && `${selectedFiles.length} files selected (${(selectedFiles.reduce((acc, f) => acc + f.size, 0) / 1024 / 1024).toFixed(2)} MB total)`}
             </div>
             <p className="text-xs text-slate-400">
-              Files will be automatically scoped and isolated to {activeCompany?.name || companyId} (up to 50MB)
+              Supports single or multiple datasets, spreadsheets, and archives up to 50MB (scoped to {activeCompany?.name || companyId})
             </p>
           </label>
         </div>
 
-        {selectedFile && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
-            <div className="flex items-center gap-2 text-xs">
-              <input
-                type="checkbox"
-                id="replaceCheck"
-                checked={replaceExisting}
-                onChange={(e) => setReplaceExisting(e.target.checked)}
-                className="rounded accent-indigo-600 cursor-pointer"
-              />
-              <label htmlFor="replaceCheck" className="text-slate-700 cursor-pointer">
-                Replace existing records for this organization (uncheck to Append)
-              </label>
-            </div>
+        {selectedFiles.length > 0 && (
+          <div className="space-y-3">
+            {selectedFiles.length > 1 && (
+              <div className="flex flex-wrap gap-2 p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs">
+                {selectedFiles.map((file, idx) => (
+                  <span key={idx} className="bg-white border border-slate-200 text-slate-700 px-2.5 py-1 rounded-md font-mono flex items-center gap-1.5">
+                    <span className="font-semibold">{file.name}</span>
+                    <span className="text-slate-400 text-[10px]">({(file.size / 1024).toFixed(0)} KB)</span>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+              <div className="flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  id="replaceCheck"
+                  checked={replaceExisting}
+                  onChange={(e) => setReplaceExisting(e.target.checked)}
+                  className="rounded accent-indigo-600 cursor-pointer"
+                />
+                <label htmlFor="replaceCheck" className="text-slate-700 cursor-pointer">
+                  Replace existing records for this organization (uncheck to Append)
+                </label>
+              </div>
 
-            <button
-              onClick={handleUpload}
-              disabled={uploading}
-              className="w-full sm:w-auto px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold rounded-lg text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
-            >
-              {uploading ? (
-                <>
-                  <Sparkles className="w-4 h-4 animate-spin" />
-                  <span>Profiling & Ingesting...</span>
-                </>
-              ) : (
-                <>
-                  <Upload className="w-4 h-4" />
-                  <span>Process Dataset</span>
-                </>
-              )}
-            </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setSelectedFiles([])}
+                  disabled={uploading}
+                  className="px-3 py-2 text-xs text-slate-600 hover:text-slate-800 border border-slate-200 rounded-lg"
+                >
+                  Clear Selection
+                </button>
+                <button
+                  onClick={handleUpload}
+                  disabled={uploading}
+                  className="w-full sm:w-auto px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold rounded-lg text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {uploading ? (
+                    <>
+                      <Sparkles className="w-4 h-4 animate-spin" />
+                      <span>Profiling & Ingesting ({selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''})...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      <span>Upload & Ingest ({selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''})</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

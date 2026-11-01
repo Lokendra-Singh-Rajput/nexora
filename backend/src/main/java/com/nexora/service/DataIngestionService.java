@@ -71,8 +71,48 @@ public class DataIngestionService {
     private String analyticsServiceUrl;
 
     @Transactional
+    public UploadResponseDto ingestFiles(String companyId, List<MultipartFile> files, boolean replaceExisting) {
+        if (files == null || files.isEmpty()) {
+            throw new DataValidationException("Uploaded file list is empty");
+        }
+        if (files.size() == 1) {
+            return ingestFile(companyId, files.get(0), replaceExisting);
+        }
+
+        log.info("Processing multi-file batch upload for company: {}, total files: {}", companyId, files.size());
+        List<Map<String, Object>> combinedRecords = new ArrayList<>();
+        StringBuilder filenames = new StringBuilder();
+        int maxRowsPerUpload = 30000;
+
+        for (MultipartFile file : files) {
+            if (file == null || file.isEmpty()) continue;
+            if (filenames.length() > 0) filenames.append(", ");
+            filenames.append(file.getOriginalFilename());
+
+            int remaining = maxRowsPerUpload - combinedRecords.size();
+            if (remaining <= 0) break;
+
+            try {
+                List<Map<String, Object>> fileRows = parseSingleFile(file, remaining);
+                combinedRecords.addAll(fileRows);
+            } catch (Exception e) {
+                log.warn("Failed to parse file '{}' in batch upload: {}", file.getOriginalFilename(), e.getMessage());
+            }
+        }
+
+        if (combinedRecords.isEmpty()) {
+            throw new DataValidationException("No valid records found in uploaded files.");
+        }
+
+        String displayName = files.size() + " files (" + filenames + ")";
+        if (displayName.length() > 250) displayName = displayName.substring(0, 247) + "...";
+
+        return processAndPersist(companyId, displayName, combinedRecords, replaceExisting);
+    }
+
+    @Transactional
     public UploadResponseDto ingestFile(String companyId, MultipartFile file, boolean replaceExisting) {
-        if (file.isEmpty()) {
+        if (file == null || file.isEmpty()) {
             throw new DataValidationException("Uploaded file is empty");
         }
 
@@ -82,26 +122,9 @@ public class DataIngestionService {
         }
 
         log.info("Processing ingestion for company: {}, file: {}", companyId, filename);
-
-        // Fetch company profile to determine industry
-        Company company = companyRepository.findById(companyId)
-                .orElseGet(() -> companyRepository.save(Company.builder()
-                        .id(companyId)
-                        .name(companyId.substring(0, 1).toUpperCase() + companyId.substring(1))
-                        .industry("RETAIL")
-                        .build()));
-
-        String industry = company.getIndustry() != null ? company.getIndustry().toUpperCase(Locale.ROOT) : "RETAIL";
-
-        List<Map<String, Object>> records = new ArrayList<>();
+        List<Map<String, Object>> records;
         try {
-            if (filename.toLowerCase().endsWith(".zip")) {
-                records = parseZip(file.getInputStream());
-            } else if (filename.toLowerCase().endsWith(".xlsx") || filename.toLowerCase().endsWith(".xls")) {
-                records = parseExcel(file.getInputStream());
-            } else {
-                records = parseCsv(file.getInputStream());
-            }
+            records = parseSingleFile(file, 30000);
         } catch (Exception e) {
             log.error("Failed to parse file: {}", e.getMessage(), e);
             throw new DataValidationException("Error reading dataset file: " + e.getMessage());
@@ -111,12 +134,30 @@ public class DataIngestionService {
             throw new DataValidationException("No data rows found in uploaded file.");
         }
 
-        // If dataset is extremely large (e.g. > 25,000 records), take 25,000 records
-        // to prevent OOM on EC2 t3.small while preserving statistical depth and fast querying
-        if (records.size() > 25000) {
-            log.info("Dataset contains {} records. Optimizing to 25,000 high-fidelity records for real-time analytics performance.", records.size());
-            records = new ArrayList<>(records.subList(0, 25000));
+        return processAndPersist(companyId, filename, records, replaceExisting);
+    }
+
+    private List<Map<String, Object>> parseSingleFile(MultipartFile file, int maxRows) throws Exception {
+        String filename = file.getOriginalFilename() != null ? file.getOriginalFilename().toLowerCase() : "";
+        if (filename.endsWith(".zip")) {
+            return parseZip(file.getInputStream(), maxRows);
+        } else if (filename.endsWith(".xlsx") || filename.endsWith(".xls")) {
+            return parseExcel(file.getInputStream(), maxRows);
+        } else {
+            return parseCsv(file.getInputStream(), maxRows);
         }
+    }
+
+    private UploadResponseDto processAndPersist(String companyId, String filename, List<Map<String, Object>> records, boolean replaceExisting) {
+        // Fetch company profile to determine industry
+        Company company = companyRepository.findById(companyId)
+                .orElseGet(() -> companyRepository.save(Company.builder()
+                        .id(companyId)
+                        .name(companyId.substring(0, 1).toUpperCase() + companyId.substring(1))
+                        .industry("RETAIL")
+                        .build()));
+
+        String industry = company.getIndustry() != null ? company.getIndustry().toUpperCase(Locale.ROOT) : "RETAIL";
 
         // Auto-detect industry from column names if file doesn't match company industry
         Set<String> colsNormalized = records.get(0).keySet().stream()
@@ -448,17 +489,29 @@ public class DataIngestionService {
     }
 
     private List<Map<String, Object>> parseCsv(InputStream is) throws IOException {
+        return parseCsv(is, 30000);
+    }
+
+    private List<Map<String, Object>> parseCsv(InputStream is, int maxRows) throws IOException {
         List<Map<String, Object>> rows = new ArrayList<>();
         try (Reader reader = new InputStreamReader(is);
              CSVParser csvParser = new CSVParser(reader, CSVFormat.DEFAULT.builder().setHeader().setSkipHeaderRecord(true).setIgnoreHeaderCase(true).setTrim(true).build())) {
             for (CSVRecord record : csvParser) {
                 rows.add(new HashMap<>(record.toMap()));
+                if (rows.size() >= maxRows) {
+                    log.info("Reached streaming intake limit of {} records; skipping remainder for speed", maxRows);
+                    break;
+                }
             }
         }
         return rows;
     }
 
     private List<Map<String, Object>> parseZip(InputStream is) throws IOException {
+        return parseZip(is, 30000);
+    }
+
+    private List<Map<String, Object>> parseZip(InputStream is, int maxRows) throws IOException {
         Map<String, byte[]> dataEntries = new HashMap<>();
         try (ZipInputStream zis = new ZipInputStream(is)) {
             ZipEntry entry;
@@ -507,12 +560,12 @@ public class DataIngestionService {
         String lowerTarget = targetEntryName.toLowerCase();
         if (lowerTarget.endsWith(".xlsx") || lowerTarget.endsWith(".xls")) {
             try {
-                return parseExcel(entryStream);
+                return parseExcel(entryStream, maxRows);
             } catch (Exception e) {
                 throw new IOException("Failed to parse Excel file inside zip: " + e.getMessage(), e);
             }
         } else {
-            return parseCsv(entryStream);
+            return parseCsv(entryStream, maxRows);
         }
     }
 
@@ -528,6 +581,10 @@ public class DataIngestionService {
     }
 
     private List<Map<String, Object>> parseExcel(InputStream is) throws Exception {
+        return parseExcel(is, 30000);
+    }
+
+    private List<Map<String, Object>> parseExcel(InputStream is, int maxRows) throws Exception {
         List<Map<String, Object>> rows = new ArrayList<>();
         Workbook workbook = WorkbookFactory.create(is);
 
@@ -541,11 +598,11 @@ public class DataIngestionService {
             }
         }
         if (sheet == null) {
-            int maxRows = -1;
+            int maxRowsSheet = -1;
             for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
                 Sheet s = workbook.getSheetAt(i);
-                if (s.getPhysicalNumberOfRows() > maxRows) {
-                    maxRows = s.getPhysicalNumberOfRows();
+                if (s.getPhysicalNumberOfRows() > maxRowsSheet) {
+                    maxRowsSheet = s.getPhysicalNumberOfRows();
                     sheet = s;
                 }
             }
@@ -564,6 +621,10 @@ public class DataIngestionService {
         }
 
         for (int r = 1; r <= sheet.getLastRowNum(); r++) {
+            if (rows.size() >= maxRows) {
+                log.info("Reached Excel streaming intake limit of {} records; skipping remainder for speed", maxRows);
+                break;
+            }
             Row row = sheet.getRow(r);
             if (row == null) continue;
 

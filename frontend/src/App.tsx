@@ -119,10 +119,10 @@ export const App: React.FC = () => {
           <main className="flex-1 overflow-y-auto">
             <Routes>
               <Route path="/" element={<OverviewPage key={`${filters.companyId}-${refreshTrigger}`} filters={filters} activeCompany={activeCompany} />} />
-              <Route path="/sales" element={<SalesPage key={`${filters.companyId}-${refreshTrigger}`} filters={filters} />} />
-              <Route path="/products" element={<ProductsPage key={`${filters.companyId}-${refreshTrigger}`} filters={filters} />} />
-              <Route path="/customers" element={<CustomersPage key={`${filters.companyId}-${refreshTrigger}`} filters={filters} />} />
-              <Route path="/inventory" element={<InventoryPage key={`${filters.companyId}-${refreshTrigger}`} companyId={filters.companyId} />} />
+              <Route path="/sales" element={<SalesPage key={`${filters.companyId}-${refreshTrigger}`} filters={filters} activeCompany={activeCompany} />} />
+              <Route path="/products" element={<ProductsPage key={`${filters.companyId}-${refreshTrigger}`} filters={filters} activeCompany={activeCompany} />} />
+              <Route path="/customers" element={<CustomersPage key={`${filters.companyId}-${refreshTrigger}`} filters={filters} activeCompany={activeCompany} />} />
+              <Route path="/inventory" element={<InventoryPage key={`${filters.companyId}-${refreshTrigger}`} companyId={filters.companyId} activeCompany={activeCompany} />} />
               <Route path="/insights" element={<InsightsPage key={`${filters.companyId}-${refreshTrigger}`} filters={filters} />} />
               <Route path="/forecast" element={<ForecastPage key={`${filters.companyId}-${refreshTrigger}`} filters={filters} />} />
               <Route path="/simulator" element={<SimulatorPage key={`${filters.companyId}-${refreshTrigger}`} companyId={filters.companyId} />} />

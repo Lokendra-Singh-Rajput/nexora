@@ -14,6 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -27,12 +28,25 @@ public class DatasetController {
     private final DemoDataInitializationService demoDataInitializationService;
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Upload and ingest business dataset (CSV or Excel)")
+    @Operation(summary = "Upload and ingest business dataset (single or multiple CSV, Excel, or ZIP files)")
     public ApiResponse<UploadResponseDto> uploadDataset(
-            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "file", required = false) MultipartFile file,
+            @RequestParam(value = "files", required = false) List<MultipartFile> files,
             @RequestParam(value = "companyId", defaultValue = "novamart") String companyId,
             @RequestParam(value = "replaceExisting", defaultValue = "false") boolean replaceExisting) {
-        UploadResponseDto result = dataIngestionService.ingestFile(companyId, file, replaceExisting);
+        List<MultipartFile> uploadList = new ArrayList<>();
+        if (files != null && !files.isEmpty()) {
+            for (MultipartFile f : files) {
+                if (f != null && !f.isEmpty()) uploadList.add(f);
+            }
+        }
+        if (file != null && !file.isEmpty()) {
+            if (!uploadList.contains(file)) uploadList.add(file);
+        }
+        if (uploadList.isEmpty()) {
+            throw new com.nexora.exception.DataValidationException("Please select at least one file to upload.");
+        }
+        UploadResponseDto result = dataIngestionService.ingestFiles(companyId, uploadList, replaceExisting);
         return ApiResponse.success("Dataset ingested and validated successfully", result);
     }
 

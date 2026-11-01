@@ -215,39 +215,99 @@ public class AnalyticsOrchestrationService {
 
     public Map<String, Object> getProductIntelligence(FilterCriteriaDto filters) {
         String companyId = getCompanyId(filters);
-        List<OrderEntity> orders = queryOrders(filters);
-        List<ProductEntity> products = productRepository.findByCompanyId(companyId);
+        Company company = companyRepository.findById(companyId)
+                .orElseGet(() -> Company.builder().id(companyId).name(companyId).industry("RETAIL").build());
+        String industry = company.getIndustry() != null ? company.getIndustry().toUpperCase(Locale.ROOT) : "RETAIL";
 
-        Map<String, Object> payload = Map.of(
-                "orders", toOrderMaps(orders),
-                "products", toProductMaps(products)
-        );
-        return callPythonEndpoint("/api/v1/analytics/products", payload);
+        if (industry.contains("BANK")) {
+            List<BankTransactionEntity> txns = queryBankTransactions(filters);
+            Map<String, Object> payload = Map.of(
+                    "records", toBankTransactionMaps(txns),
+                    "industry", "BANKING"
+            );
+            return callPythonEndpoint("/api/v1/analytics/trends", payload);
+        } else if (industry.contains("MANUF")) {
+            List<ManufacturingBatchEntity> batches = queryManufacturingBatches(filters);
+            Map<String, Object> payload = Map.of(
+                    "records", toManufacturingBatchMaps(batches),
+                    "industry", "MANUFACTURING"
+            );
+            return callPythonEndpoint("/api/v1/analytics/trends", payload);
+        } else {
+            List<OrderEntity> orders = queryOrders(filters);
+            List<ProductEntity> products = productRepository.findByCompanyId(companyId);
+
+            Map<String, Object> payload = Map.of(
+                    "orders", toOrderMaps(orders),
+                    "products", toProductMaps(products)
+            );
+            return callPythonEndpoint("/api/v1/analytics/products", payload);
+        }
     }
 
     public Map<String, Object> getCustomerAnalytics(FilterCriteriaDto filters) {
         String companyId = getCompanyId(filters);
-        List<OrderEntity> orders = queryOrders(filters);
-        List<CustomerEntity> customers = customerRepository.findByCompanyId(companyId);
+        Company company = companyRepository.findById(companyId)
+                .orElseGet(() -> Company.builder().id(companyId).name(companyId).industry("RETAIL").build());
+        String industry = company.getIndustry() != null ? company.getIndustry().toUpperCase(Locale.ROOT) : "RETAIL";
 
-        Map<String, Object> payload = Map.of(
-                "orders", toOrderMaps(orders),
-                "customers", toCustomerMaps(customers)
-        );
-        return callPythonEndpoint("/api/v1/analytics/customers", payload);
+        if (industry.contains("BANK")) {
+            List<BankTransactionEntity> txns = queryBankTransactions(filters);
+            Map<String, Object> payload = Map.of(
+                    "records", toBankTransactionMaps(txns),
+                    "industry", "BANKING"
+            );
+            return callPythonEndpoint("/api/v1/analytics/trends", payload);
+        } else if (industry.contains("MANUF")) {
+            List<ManufacturingBatchEntity> batches = queryManufacturingBatches(filters);
+            Map<String, Object> payload = Map.of(
+                    "records", toManufacturingBatchMaps(batches),
+                    "industry", "MANUFACTURING"
+            );
+            return callPythonEndpoint("/api/v1/analytics/trends", payload);
+        } else {
+            List<OrderEntity> orders = queryOrders(filters);
+            List<CustomerEntity> customers = customerRepository.findByCompanyId(companyId);
+
+            Map<String, Object> payload = Map.of(
+                    "orders", toOrderMaps(orders),
+                    "customers", toCustomerMaps(customers)
+            );
+            return callPythonEndpoint("/api/v1/analytics/customers", payload);
+        }
     }
 
     public Map<String, Object> getInventoryIntelligence(String companyId) {
-        List<InventoryEntity> inventory = inventoryRepository.findByCompanyId(companyId);
-        List<OrderEntity> orders = orderRepository.findByCompanyId(companyId);
-        List<ProductEntity> products = productRepository.findByCompanyId(companyId);
+        Company company = companyRepository.findById(companyId)
+                .orElseGet(() -> Company.builder().id(companyId).name(companyId).industry("RETAIL").build());
+        String industry = company.getIndustry() != null ? company.getIndustry().toUpperCase(Locale.ROOT) : "RETAIL";
 
-        Map<String, Object> payload = Map.of(
-                "inventory", toInventoryMaps(inventory),
-                "orders", toOrderMaps(orders),
-                "products", toProductMaps(products)
-        );
-        return callPythonEndpoint("/api/v1/analytics/inventory", payload);
+        if (industry.contains("BANK")) {
+            List<BankTransactionEntity> txns = bankTransactionRepository.findByCompanyId(companyId);
+            Map<String, Object> payload = Map.of(
+                    "records", toBankTransactionMaps(txns),
+                    "industry", "BANKING"
+            );
+            return callPythonEndpoint("/api/v1/analytics/trends", payload);
+        } else if (industry.contains("MANUF")) {
+            List<ManufacturingBatchEntity> batches = manufacturingBatchRepository.findByCompanyId(companyId);
+            Map<String, Object> payload = Map.of(
+                    "records", toManufacturingBatchMaps(batches),
+                    "industry", "MANUFACTURING"
+            );
+            return callPythonEndpoint("/api/v1/analytics/trends", payload);
+        } else {
+            List<InventoryEntity> inventory = inventoryRepository.findByCompanyId(companyId);
+            List<OrderEntity> orders = orderRepository.findByCompanyId(companyId);
+            List<ProductEntity> products = productRepository.findByCompanyId(companyId);
+
+            Map<String, Object> payload = Map.of(
+                    "inventory", toInventoryMaps(inventory),
+                    "orders", toOrderMaps(orders),
+                    "products", toProductMaps(products)
+            );
+            return callPythonEndpoint("/api/v1/analytics/inventory", payload);
+        }
     }
 
     public Map<String, Object> getRootCauseAnalysis(FilterCriteriaDto filters, String targetKpi) {
